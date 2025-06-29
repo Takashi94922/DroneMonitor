@@ -18,16 +18,6 @@
                    VerticalOptions="Start"
                    TextColor="Red" />
 
-            <!-- BLE接続ボタン追加 -->
-            <Button x:Name="bleConnectBtn"
-                    Grid.Row="0"
-                    Grid.Column="5"
-                    Text="BLE接続"
-                    Clicked="OnConnectButtonClicked"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,0,0,10" />
-
             <!-- 左スロットル（FS） -->
             <Slider x:Name="S1SeekBar"
                     Grid.Row="1"

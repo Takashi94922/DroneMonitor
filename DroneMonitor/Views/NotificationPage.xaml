@@ -4,42 +4,79 @@
              Title="Notifications">
 
     <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, *"
-          ColumnDefinitions="*"
+          ColumnDefinitions="Auto,*"
           Padding="12">
 
         <!-- 位置 -->
         <Label x:Name="positionTextView"
                Grid.Row="0"
+               Grid.Column="0"
                Text="Position"
+               HorizontalOptions="Start"
+               FontSize="18" />
+        <Label x:Name="positionValueLabel"
+               Grid.Row="0"
+               Grid.Column="1"
+               Text=""
+               WidthRequest="100"
                HorizontalOptions="Start"
                FontSize="18" />
 
         <!-- 速度 -->
         <Label x:Name="velocityTextView"
                Grid.Row="1"
+               Grid.Column="0"
                Text="Velocity"
                HorizontalOptions="Start"
                FontSize="18"
+               Margin="0,8,0,0" />
+        <Label x:Name="velocityValueLabel"
+               Grid.Row="1"
+               Grid.Column="1"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="18"
+               WidthRequest="100"
                Margin="0,8,0,0" />
 
         <!-- 加速度 -->
         <Label x:Name="accelTextView"
                Grid.Row="2"
+               Grid.Column="0"
                Text="Acceleration"
                HorizontalOptions="Start"
+               FontSize="18"
+               Margin="0,8,0,0" />
+        <Label x:Name="accelValueLabel"
+               Grid.Row="2"
+               Grid.Column="1"
+               Text=""
+               HorizontalOptions="Start"
+               WidthRequest="100"
                FontSize="18"
                Margin="0,8,0,0" />
 
         <!-- コントロール状態 -->
         <Label x:Name="ctrltextView"
                Grid.Row="3"
+               Grid.Column="0"
                Text="Control Text"
+               HorizontalOptions="Start"
+               FontSize="18"
+               Margin="0,8,0,0" />
+        <Label x:Name="ctrlValueLabel"
+               Grid.Row="3"
+               Grid.Column="1"
+               Text=""
+               WidthRequest="100"
                HorizontalOptions="Start"
                FontSize="18"
                Margin="0,8,0,0" />
 
         <!-- コントロールボタン -->
         <StackLayout Grid.Row="5"
+                     Grid.Column="0"
+                     Grid.ColumnSpan="2"
                      Orientation="Horizontal"
                      HorizontalOptions="Start"
                      Margin="0,0,0,80"

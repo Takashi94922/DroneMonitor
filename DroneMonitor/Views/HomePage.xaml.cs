@@ -8,61 +8,31 @@ namespace DroneMonitor.Views
 {
     public partial class HomePage : ContentPage
     {
-        private readonly BleService _bleService;
-        private bool _isConnected = false;
+        private BleService? _bleService;
 
-        // デフォルトコンストラクタを追加
-        public HomePage() : this(new BleService())
-        {
-        }
-
-        public HomePage(BleService bleService)
+        public HomePage()
         {
             InitializeComponent();
-            _bleService = bleService;
+            //Seekbarのイベントハンドラを登録
+            throttleSeekBar.ValueChanged += OnSliderChanged;
+            S1SeekBar.ValueChanged += OnSliderChanged;
+            S2SeekBar.ValueChanged += OnSliderChanged;
+            S3SeekBar.ValueChanged += OnSliderChanged;
+            S4SeekBar.ValueChanged += OnSliderChanged;
+            // ボタンのイベントハンドラを登録
+            throttlePlusBtn.Clicked += OnPlusClicked;
+            throttleMinusBtn.Clicked += OnMinusClicked;
 
-            // BLE通知受信時のイベントハンドラ登録
-            _bleService.NotificationReceived += OnNotificationReceived;
-
-            // 既存のUIイベントハンドラ
-            S1SeekBar.ValueChanged += OnSliderChanged!;
-            throttleSeekBar.ValueChanged += OnSliderChanged!;
-            S2SeekBar.ValueChanged += OnSliderChanged!;
-            S3SeekBar.ValueChanged += OnSliderChanged!;
-            S4SeekBar.ValueChanged += OnSliderChanged!;
-            throttlePlusBtn.Clicked += OnPlusClicked!;
-            throttleMinusBtn.Clicked += OnMinusClicked!;
-
-            // ボタンの初期ラベル
-            bleConnectBtn.Text = "Disconnected";
         }
 
-        // BLE接続/切断ボタン
-        private async void OnConnectButtonClicked(object sender, EventArgs e)
+        async public void SetBleService(BleService bleService)
         {
-            if (!_isConnected)
-            {
-                bool connected = await _bleService.ConnectToDeviceAsync("ESP_DRONE");
-                if (connected)
-                {
-                    await _bleService.StartNotificationAsync("CHAR_UUID_contU_TelemWrit");
-                    await _bleService.StartNotificationAsync("CHAR_UUID_Command");
-                    _isConnected = true;
-                    bleConnectBtn.Text = "Connected";
-                    bleConnectBtn.BackgroundColor = Colors.Blue;
-                }
-                else
-                {
-                    await DisplayAlert("エラー", "接続できませんでした", "OK");
-                }
-            }
-            else
-            {
-                await _bleService.DisconnectAsync();
-                _isConnected = false;
-                bleConnectBtn.Text = "Disconnected";
-                bleConnectBtn.BackgroundColor = Colors.Red;
-            }
+            _bleService = bleService;
+            // イベントの重複登録を防ぐため一度解除
+            _bleService.NotificationReceived -= OnNotificationReceived;
+            _bleService.NotificationReceived += OnNotificationReceived;
+            // 必要なら通知開始
+            _bleService.StartNotificationAsync("Command");
         }
 
         // BLE通知受信時の処理
@@ -88,7 +58,11 @@ namespace DroneMonitor.Views
             var slider = (Slider)sender!;
             msgWindow.Text = $"{slider.AutomationId ?? "Slider"}: {e.NewValue:0.00}";
 
-            if (!_isConnected) return;
+            if (!_bleService.IsConnected || _bleService == null)
+            {
+                Debug.WriteLine("BLE未接続またはサービス未設定");
+                return;
+            }
 
             byte[] data;
             // スライダー名で送信データを分岐し、float値をbyte配列に変換
@@ -135,6 +109,10 @@ namespace DroneMonitor.Views
             {
                 await characteristic.WriteAsync(data);
             }
+            else
+            {
+                Debug.WriteLine("Command characteristic not found.");
+            }
         }
 
         private void OnPlusClicked(object? sender, EventArgs e)
@@ -145,6 +123,18 @@ namespace DroneMonitor.Views
         private void OnMinusClicked(object? sender, EventArgs e)
         {
             throttleSeekBar.Value = Math.Max(throttleSeekBar.Value - 10, 0);
+        }
+
+        protected override async void OnDisappearing()
+        {
+            base.OnDisappearing();
+            if (_bleService != null)
+            {
+                // 必要な通知キーを指定して停止
+                _bleService.StopNotificationAsync("Command");
+                // 他にも通知を止めたいCharacteristicがあればここで追加
+                _bleService.NotificationReceived -= OnNotificationReceived;
+            }
         }
     }
 }

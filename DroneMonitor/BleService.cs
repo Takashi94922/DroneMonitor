@@ -3,6 +3,7 @@ using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.EventArgs;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +13,7 @@ public class BleService
     public IBluetoothLE Ble { get; }
     public IDevice? Device { get; private set; }
     public IService? Service { get; private set; }
+    public bool IsConnected => Device != null && Adapter.ConnectedDevices.Contains(Device);
 
     // •¡”Characteristic‚ğ•Û‚·‚éDictionary‚ğ’Ç‰Á
     public Dictionary<string, ICharacteristic> Characteristics { get; } = new();
@@ -151,6 +153,6 @@ public class BleService
 
     private void OnValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
     {
-        NotificationReceived?.Invoke(this, e.Characteristic.Value);
+        NotificationReceived?.Invoke(e.Characteristic, e.Characteristic.Value);
     }
 }
