@@ -1,0 +1,105 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
+             x:Class="DroneMonitor.Views.HomePage"
+             Title="BT DRONE">
+    <StackLayout>
+        <Grid Padding="10"
+              RowDefinitions="Auto, *, Auto"
+              ColumnDefinitions="Auto,*,*,*,*,Auto">
+
+            <!-- メッセージ表示 -->
+            <Label x:Name="msgWindow"
+                   Grid.Row="0"
+                   Grid.Column="2"
+                   Grid.ColumnSpan="2"
+                   Text="Not Connected"
+                   FontSize="18"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Start"
+                   TextColor="Red" />
+
+            <!-- BLE接続ボタン追加 -->
+            <Button x:Name="bleConnectBtn"
+                    Grid.Row="0"
+                    Grid.Column="5"
+                    Text="BLE接続"
+                    Clicked="OnConnectButtonClicked"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,0,0,10" />
+
+            <!-- 左スロットル（FS） -->
+            <Slider x:Name="S1SeekBar"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Rotation="-90"
+                    Maximum="100"
+                    Value="50"
+                    HeightRequest="172"
+                    WidthRequest="160"
+                    VerticalOptions="Center" />
+
+            <!-- 左スロットル（FS） -->
+            <Slider x:Name="S2SeekBar"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Rotation="-90"
+                    Maximum="100"
+                    Value="50"
+                    HeightRequest="172"
+                    WidthRequest="160"
+                    VerticalOptions="Center" />
+
+            <!-- 中央スロットル（Throttle） -->
+            <Slider x:Name="throttleSeekBar"
+                    Grid.Row="1"
+                    Grid.Column="2"
+                    Rotation="-90"
+                    Maximum="100"
+                    Value="0"
+                    HeightRequest="172"
+                    WidthRequest="160"
+                    VerticalOptions="Center" />
+
+            <!-- 右スロットル（SG） -->
+            <Slider x:Name="S3SeekBar"
+                    Grid.Row="1"
+                    Grid.Column="3"
+                    Rotation="-90"
+                    Maximum="100"
+                    Value="50"
+                    HeightRequest="172"
+                    WidthRequest="160"
+                    VerticalOptions="Center" />
+
+            <!-- 右スロットル（SG） -->
+            <Slider x:Name="S4SeekBar"
+                    Grid.Row="1"
+                    Grid.Column="4"
+                    Rotation="-90"
+                    Maximum="100"
+                    Value="50"
+                    HeightRequest="172"
+                    WidthRequest="160"
+                    VerticalOptions="Center" />
+
+            <!-- マイナスボタン -->
+            <Button x:Name="throttleMinusBtn"
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Text="-"
+                    WidthRequest="50"
+                    HorizontalOptions="Start"
+                    VerticalOptions="End" />
+
+            <!-- プラスボタン -->
+            <Button x:Name="throttlePlusBtn"
+                    Grid.Row="2"
+                    Grid.Column="5"
+                    Text="+"
+                    WidthRequest="50"
+                    HorizontalOptions="End"
+                    VerticalOptions="End" />
+        </Grid>
+    </StackLayout>
+</ContentPage>
