@@ -49,6 +49,9 @@ namespace DroneMonitor
                     _isConnected = true;
                     btn.Text = "切断";
                     btn.BackgroundColor = Colors.Blue;
+                    
+                     // ShellのCurrentPageは実際には現在表示中のContentPageインスタンス
+                    SetBleServiceToCurrentPage();
                 }
                 else
                 {
@@ -62,6 +65,8 @@ namespace DroneMonitor
                 _isConnected = false;
                 btn.Text = "BLE接続";
                 btn.BackgroundColor = Colors.Red;
+                
+
             }
         }
 

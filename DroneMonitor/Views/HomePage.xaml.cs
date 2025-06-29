@@ -23,6 +23,12 @@ namespace DroneMonitor.Views
             throttlePlusBtn.Clicked += OnPlusClicked;
             throttleMinusBtn.Clicked += OnMinusClicked;
 
+
+        }
+        public void StartNotificationAsync()
+        {
+            // 必要なら通知開始
+            _bleService.StartNotificationAsync("Command");
         }
 
         async public void SetBleService(BleService bleService)
@@ -31,8 +37,10 @@ namespace DroneMonitor.Views
             // イベントの重複登録を防ぐため一度解除
             _bleService.NotificationReceived -= OnNotificationReceived;
             _bleService.NotificationReceived += OnNotificationReceived;
-            // 必要なら通知開始
-            _bleService.StartNotificationAsync("Command");
+            if (_bleService != null && _bleService.IsConnected)
+            {
+                StartNotificationAsync();
+            }
         }
 
         // BLE通知受信時の処理

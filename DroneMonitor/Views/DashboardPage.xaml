@@ -1,18 +1,12 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"  
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
              x:Class="DroneMonitor.Views.DashboardPage"  
-             Title="Dashboard">  
+             Title="Dashboard">
 
-    <StackLayout Padding="8"  
-                 VerticalOptions="Center"  
-                 HorizontalOptions="Center">  
+    <Grid>
+        <WebView x:Name="webView"
+             HorizontalOptions="FillAndExpand"
+             VerticalOptions="FillAndExpand" />
+    </Grid>
 
-        <Label x:Name="textDashboard"  
-               Text="Dashboard Text"  
-               FontSize="20"  
-               HorizontalTextAlignment="Center"  
-               HorizontalOptions="Center"  
-               WidthRequest="300" />  
-
-    </StackLayout>  
 </ContentPage>

@@ -14,19 +14,25 @@ public partial class NotificationPage : ContentPage
     public NotificationPage()
     {
         InitializeComponent();
+
     }
-
-    public void SetBleService(BleService bleService)
+    public void StartNotificationAsync()
     {
-        _bleService = bleService;
-        _bleService.NotificationReceived -= OnNotificationReceived;
-        _bleService.NotificationReceived += OnNotificationReceived;
-
         // 通知開始の成否をログ出力
         _bleService.StartNotificationAsync("Xhat_Telem").ContinueWith(t =>
             Debug.WriteLine($"Xhat_Telem通知開始: {t.Result}"));
         _bleService.StartNotificationAsync("contU_TelemWrite").ContinueWith(t =>
             Debug.WriteLine($"contU_TelemWrite通知開始: {t.Result}"));
+    }
+    public void SetBleService(BleService bleService)
+    {
+        _bleService = bleService;
+        _bleService.NotificationReceived -= OnNotificationReceived;
+        _bleService.NotificationReceived += OnNotificationReceived;
+        if (_bleService != null && _bleService.IsConnected)
+        {
+            StartNotificationAsync();
+        }
     }
 
     private void OnNotificationReceived(object? sender, byte[] data)

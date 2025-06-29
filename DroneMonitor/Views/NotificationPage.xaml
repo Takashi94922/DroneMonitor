@@ -20,7 +20,8 @@
                Text=""
                WidthRequest="100"
                HorizontalOptions="Start"
-               FontSize="18" />
+               FontSize="18"
+               Padding="16,0,0,0" />
 
         <!-- 速度 -->
         <Label x:Name="velocityTextView"
@@ -36,8 +37,9 @@
                Text=""
                HorizontalOptions="Start"
                FontSize="18"
-               WidthRequest="100"
-               Margin="0,8,0,0" />
+               WidthRequest="130"
+               Margin="0,8,0,0"
+               Padding="16,0,0,0" />
 
         <!-- 加速度 -->
         <Label x:Name="accelTextView"
@@ -54,7 +56,8 @@
                HorizontalOptions="Start"
                WidthRequest="100"
                FontSize="18"
-               Margin="0,8,0,0" />
+               Margin="0,8,0,0"
+               Padding="16,0,0,0" />
 
         <!-- コントロール状態 -->
         <Label x:Name="ctrltextView"
@@ -71,7 +74,8 @@
                WidthRequest="100"
                HorizontalOptions="Start"
                FontSize="18"
-               Margin="0,8,0,0" />
+               Margin="0,8,0,0"
+               Padding="16,0,0,0" />
 
         <!-- コントロールボタン -->
         <StackLayout Grid.Row="5"
