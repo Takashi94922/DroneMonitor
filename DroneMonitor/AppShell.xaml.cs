@@ -1,5 +1,4 @@
 ﻿using System;
-using Microsoft.Maui.Controls;
 using DroneMonitor.Views;
 
 namespace DroneMonitor
