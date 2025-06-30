@@ -71,11 +71,11 @@
 	  <Compile Update="Views\HomePage.xaml.cs">
 	    <DependentUpon>HomePage.xaml</DependentUpon>
 	  </Compile>
-	  <Compile Update="Views\DashboardPage.xaml.cs">
-	    <DependentUpon>DashboardPage.xaml</DependentUpon>
+	  <Compile Update="Views\PRYmonitorPage.xaml.cs">
+	    <DependentUpon>PRYmonitorPage.xaml</DependentUpon>
 	  </Compile>
-	  <Compile Update="Views\NotificationPage.xaml.cs">
-	    <DependentUpon>NotificationPage.xaml</DependentUpon>
+	  <Compile Update="Views\ControlDataPage.xaml.cs">
+	    <DependentUpon>ControlDataPage.xaml</DependentUpon>
 	  </Compile>
 	</ItemGroup>
 
@@ -83,10 +83,10 @@
 	  <MauiXaml Update="Views\HomePage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\DashboardPage.xaml">
+	  <MauiXaml Update="Views\PRYmonitorPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\NotificationPage.xaml">
+	  <MauiXaml Update="Views\ControlDataPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	</ItemGroup>

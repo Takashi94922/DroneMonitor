@@ -11,13 +11,13 @@ using System.Security.Cryptography;
 
 namespace DroneMonitor.Views
 {
-    public partial class DashboardPage : ContentPage
+    public partial class PRYmonitorPage : ContentPage
     {
         private BleService? _bleService;
         private float pitch, roll, yaw;
         private WebServer? _server;
 
-        public DashboardPage()
+        public PRYmonitorPage()
         {
             InitializeComponent();
         }

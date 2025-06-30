@@ -1,7 +1,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"  
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
-             x:Class="DroneMonitor.Views.DashboardPage"  
-             Title="Dashboard">
+             x:Class="DroneMonitor.Views.PRYmonitorPage"  
+             Title="PRYmonitor">
 
     <Grid>
         <WebView x:Name="webView"

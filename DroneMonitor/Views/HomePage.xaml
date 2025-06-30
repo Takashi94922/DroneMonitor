@@ -12,11 +12,11 @@
                    Grid.Row="0"
                    Grid.Column="2"
                    Grid.ColumnSpan="2"
-                   Text="Not Connected"
+                   Text=""
                    FontSize="18"
                    HorizontalOptions="Center"
                    VerticalOptions="Start"
-                   TextColor="Red" />
+                   TextColor="Black" />
 
             <!-- 左スロットル（FS） -->
             <Slider x:Name="S1SeekBar"

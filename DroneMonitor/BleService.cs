@@ -14,11 +14,10 @@ public class BleService
     public IDevice? Device { get; private set; }
     public IService? Service { get; private set; }
     public bool IsConnected => Device != null && Adapter.ConnectedDevices.Contains(Device);
+    public bool IsControlBySelf { get; set; } = false; // 自分で制御するかどうか
 
     // 複数Characteristicを保持するDictionaryを追加
     public Dictionary<string, ICharacteristic> Characteristics { get; } = new();
-
-    // esp32 MAC 4c:11:ae:eb:91:86
 
     // サービス・キャラクタリスティックUUIDを16bitから128bitに変換
     private static Guid To128BitUuid(ushort uuid16) =>

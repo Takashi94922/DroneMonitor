@@ -5,21 +5,23 @@
     xmlns:views="clr-namespace:DroneMonitor.Views"
     x:Class="DroneMonitor.AppShell">
 
-    <Shell.TitleView>
-        <Grid Padding="10" ColumnDefinitions="*,Auto">
-            <Label Text="Drone Monitor" FontSize="20" VerticalOptions="Center" />
+    <Shell.TitleView >
+        <Grid HeightRequest="80" ColumnDefinitions="*,Auto" >
+            <Label Text="Drone Monitor" FontSize="20" VerticalOptions="Center" Grid.Column="0" Padding="10" />
             <Button x:Name="bleConnectBtn"
-                    Text="BLE接続"
+                    BackgroundColor="Blue"
+                    Text=""
+                    HeightRequest="20"
                     Clicked="OnBleConnectClicked"
                     Grid.Column="1"
-                    VerticalOptions="Center"
-                    Margin="0,0,10,0"/>
+                    VerticalOptions="Start"
+                    Margin="0,5,0,0"/>
         </Grid>
     </Shell.TitleView>
 
     <TabBar>
         <ShellContent Title="Home" ContentTemplate="{DataTemplate views:HomePage}" />
-        <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
-        <ShellContent Title="Notification" ContentTemplate="{DataTemplate views:NotificationPage}" />
+        <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:PRYmonitorPage}" />
+        <ShellContent Title="Notification" ContentTemplate="{DataTemplate views:ControlDataPage}" />
     </TabBar>
 </Shell>

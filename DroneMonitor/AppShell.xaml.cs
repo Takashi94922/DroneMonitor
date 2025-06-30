@@ -28,11 +28,11 @@ namespace DroneMonitor
             {
                 home.SetBleService(_bleService);
             }
-            else if (CurrentPage is DashboardPage dash)
+            else if (CurrentPage is PRYmonitorPage dash)
             {
                 dash.SetBleService(_bleService);
             }
-            else if (CurrentPage is NotificationPage notify)
+            else if (CurrentPage is ControlDataPage notify)
             {
                 notify.SetBleService(_bleService);
             }
@@ -47,8 +47,7 @@ namespace DroneMonitor
                 if (connected)
                 {
                     _isConnected = true;
-                    btn.Text = "切断";
-                    btn.BackgroundColor = Colors.Blue;
+                    SetBleButtonState(_isConnected);
                     
                      // ShellのCurrentPageは実際には現在表示中のContentPageインスタンス
                     SetBleServiceToCurrentPage();
@@ -63,10 +62,7 @@ namespace DroneMonitor
             {
                 await _bleService.DisconnectAsync();
                 _isConnected = false;
-                btn.Text = "BLE接続";
-                btn.BackgroundColor = Colors.Red;
-                
-
+                SetBleButtonState(_isConnected);
             }
         }
 
@@ -76,7 +72,7 @@ namespace DroneMonitor
             if (this.FindByName<Button>("bleConnectBtn") is Button btn)
             {
                 btn.Text = connected ? "切断" : "BLE接続";
-                btn.BackgroundColor = connected ? Colors.Blue : Colors.Red;
+                btn.BackgroundColor = connected ? Colors.Red : Colors.Blue;
             }
         }
     }
