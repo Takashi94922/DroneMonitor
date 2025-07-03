@@ -1,3 +1,4 @@
+using Microsoft.Maui.Dispatching;
 using Plugin.BLE.Abstractions.Contracts;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
@@ -94,61 +95,59 @@ namespace DroneMonitor.Views
     {
         private BleService? _bleService;
         private float pitch, roll, yaw;
-        private List<Triangle> loadedTriangles; // STL読み込み結果
+
+        // STL 読み込みデータ
+        private List<Triangle> loadedTriangles = new();
+
+        // スクリーン投影済み頂点＋カラー＋インデックス
+        private SKVertices? skVerts;
+        private readonly SKPaint fillPaint = new SKPaint
+        {
+            Color = SKColors.LightBlue,
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill,
+            BlendMode = SKBlendMode.SrcOver
+        };
+
+        // 回転行列・モデル中心・Z最大値
+        private Matrix4x4 rotationMatrix = Matrix4x4.Identity;
+        private Vector3 modelCenter;
+        private float zMax;
+
+        // 投影パラメータ
+        private const float FOV = 500f;
+        private const float SCALE = 2f;
+        private const float OFFSET_X = 500f;
+        private const float OFFSET_Y = 200f;
+
 
         public PRYmonitorPage()
         {
             InitializeComponent();
+            // タイマー作成
+            var timer = this.Dispatcher.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(33);  // ≒30fps
+            timer.Tick += (s, e) =>
+            {
+                canvasView.InvalidateSurface();
+            };
+            timer.Start();
         }
 
         protected override async void OnAppearing()
         {
             base.OnAppearing();
+
+            // 1) STL読み込み
             loadedTriangles = await STLLoader.LoadFromResourceAsync("modelv46.stl");
+
+            // 2) モデル重心を算出（回転中心を安定化）
+            var allPoints = loadedTriangles.SelectMany(t => t.Vertices);
+            modelCenter = new Vector3(0,0,0);
+
+            // 3) 初期回転を適用（例：Pitch=270で上向き補正）
+            await ApplyRotationAsync(270, 0, 0);
             canvasView.InvalidateSurface();
-        }
-
-
-        void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
-        {
-            var canvas = e.Surface.Canvas;
-            canvas.Clear(SKColors.White);
-
-            if (loadedTriangles == null) return;
-
-            using var paint = new SKPaint
-            {
-                Color = SKColors.Blue,
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke
-            };
-
-            foreach (var tri in loadedTriangles)
-            {
-                var path = new SKPath();
-                var p0 = ProjectTo2D(tri.Vertices[0]);
-                var p1 = ProjectTo2D(tri.Vertices[1]);
-                var p2 = ProjectTo2D(tri.Vertices[2]);
-
-                path.MoveTo(p0);
-                path.LineTo(p1);
-                path.LineTo(p2);
-                path.Close();
-
-                canvas.DrawPath(path, paint);
-            }
-        }
-
-        SKPoint ProjectTo2D(SKPoint3 pt3D)
-        {
-            float scale = 50;   // 拡大率
-            float offsetX = 200; // 中心移動（X）
-            float offsetY = 200; // 中心移動（Y）
-
-            return new SKPoint(
-                pt3D.X * scale + offsetX,
-                -pt3D.Y * scale + offsetY // Y軸反転（上方向が正）
-            );
         }
 
         public void StartNotificationAsync()
@@ -205,24 +204,142 @@ namespace DroneMonitor.Views
                     roll = floats[1];
                     yaw = floats[2];
                     Debug.WriteLine($"{pitch:F2}, {roll:F2}, {yaw:F2}");
-                    Rotetef(pitch, roll, yaw);
+                    // バックグラウンドで重い回転計算を走らせる
+                    _ = ApplyRotationAsync(pitch, roll, yaw);
                 }
             });
         }
-        async Task Rotetef(float ptich, float roll , float yaw)
+
+        void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
         {
+            var canvas = e.Surface.Canvas;
+            canvas.Clear(SKColors.White);
+
+            // SKVertices を一括描画
+            if (skVerts != null)
+                canvas.DrawVertices(skVerts, SKBlendMode.SrcOver, fillPaint);
+
+            // 軸表示
+            DrawAxes(canvas);
         }
 
-        protected override async void OnDisappearing()
+        async Task ApplyRotationAsync(float pitch, float roll, float yaw)
         {
-            base.OnDisappearing();
-            if (_bleService != null)
+            if (loadedTriangles == null || loadedTriangles.Count == 0)
+                return;
+
+            // 回転行列更新
+            var r = MathF.PI / 180f;
+            var rx = Matrix4x4.CreateRotationX(pitch * r);
+            var ry = Matrix4x4.CreateRotationY(roll * r);
+            var rz = Matrix4x4.CreateRotationZ(yaw * r);
+            rotationMatrix = rz * ry * rx;
+
+            // 頂点数×3 のバッファを確保
+            var projected = new SKPoint[loadedTriangles.Count * 3];
+            var colors = new SKColor[loadedTriangles.Count * 3];
+            var indices = new ushort[loadedTriangles.Count * 3];
+
+            ushort baseIndex = 0;
+            for (int i = 0; i < loadedTriangles.Count; i++)
             {
-                // 必要な通知キーを指定して停止
-                _bleService.StopNotificationAsync("PRY_Telem");
-                // 他にも通知を止めたいCharacteristicがあればここで追加
-                _bleService.NotificationReceived -= OnNotificationReceived;
+                var tri = loadedTriangles[i];
+
+                // 3D 回転＋重心移動 → 2D 投影
+                var v0 = Transform(tri.Vertices[0]);
+                var v1 = Transform(tri.Vertices[1]);
+                var v2 = Transform(tri.Vertices[2]);
+
+                projected[baseIndex + 0] = ProjectTo2D(v0);
+                projected[baseIndex + 1] = ProjectTo2D(v1);
+                projected[baseIndex + 2] = ProjectTo2D(v2);
+
+                // インデックス
+                indices[baseIndex + 0] = (ushort)(baseIndex + 0);
+                indices[baseIndex + 1] = (ushort)(baseIndex + 1);
+                indices[baseIndex + 2] = (ushort)(baseIndex + 2);
+
+                // Z に応じた擬似陰影（遠くほど暗く）
+                float zAvg = (v0.Z + v1.Z + v2.Z) / 3f;
+                float shade = Math.Clamp(1f - (zAvg / zMax), 0.2f, 1f);
+                byte bright = (byte)(shade * 255f);
+
+                var c = new SKColor(bright, bright, 255);
+
+                colors[baseIndex + 0] = c;
+                colors[baseIndex + 1] = c;
+                colors[baseIndex + 2] = c;
+
+                baseIndex += 3;
             }
+
+            // SKVertices を一度だけ構築
+            skVerts = SKVertices.CreateCopy(
+                SKVertexMode.Triangles,
+                projected,
+                null,
+                colors,
+                indices);
+
+            // 再描画リクエスト
+            MainThread.BeginInvokeOnMainThread(() =>
+                canvasView.InvalidateSurface());
         }
+
+        void ComputeModelCenterAndZRange()
+        {
+            var pts = loadedTriangles
+                .SelectMany(t => t.Vertices)
+                .Select(p => new Vector3(p.X, p.Y, p.Z))
+                .ToArray();
+
+            // 重心
+            var sum = Vector3.Zero;
+            foreach (var p in pts) sum += p;
+            modelCenter = sum / pts.Length;
+
+            // Z範囲
+            zMax = pts.Max(p => p.Z);
+        }
+
+        // SKPoint3 → 回転行列適用後の Vector3
+        Vector3 Transform(SKPoint3 pt)
+        {
+            var v = new Vector3(pt.X, pt.Y, pt.Z) - modelCenter;
+            return Vector3.Transform(v, rotationMatrix) + modelCenter;
+        }
+
+        SKPoint ProjectTo2D(Vector3 p)
+        {
+            // 遠近補正
+            var factor = FOV / (FOV + p.Z);
+            var s = SCALE * factor;
+            return new SKPoint(
+                p.X * s + OFFSET_X,
+                -p.Y * s + OFFSET_Y);
+        }
+
+        void DrawAxes(SKCanvas canvas)
+        {
+            var o = modelCenter;
+            var x = o + Vector3.Transform(new Vector3(1, 0, 0), rotationMatrix) * 100;
+            var y = o + Vector3.Transform(new Vector3(0, 1, 0), rotationMatrix) * 100;
+            var z = o + Vector3.Transform(new Vector3(0, 0, 1), rotationMatrix) * 100;
+
+            var o2 = ProjectTo2D(o);
+            var x2 = ProjectTo2D(x);
+            var y2 = ProjectTo2D(y);
+            var z2 = ProjectTo2D(z);
+
+            using var px = new SKPaint { Color = SKColors.Red, StrokeWidth = 2 };
+            using var py = new SKPaint { Color = SKColors.Green, StrokeWidth = 2 };
+            using var pz = new SKPaint { Color = SKColors.Blue, StrokeWidth = 2 };
+
+            canvas.DrawLine(o2, x2, px);
+            canvas.DrawLine(o2, y2, py);
+            canvas.DrawLine(o2, z2, pz);
+        }
+
+
     }
 }
