@@ -100,26 +100,25 @@ namespace DroneMonitor.Views
         private List<Triangle> loadedTriangles = new();
 
         // スクリーン投影済み頂点＋カラー＋インデックス
-        private SKVertices? skVerts;
         private readonly SKPaint fillPaint = new SKPaint
         {
             Color = SKColors.LightBlue,
             IsAntialias = true,
-            Style = SKPaintStyle.Fill,
-            BlendMode = SKBlendMode.SrcOver
+            Style = SKPaintStyle.Fill
         };
 
         // 回転行列・モデル中心・Z最大値
         private Matrix4x4 rotationMatrix = Matrix4x4.Identity;
         private Vector3 modelCenter;
         private float zMax;
-
+        private float zMin;
         // 投影パラメータ
         private const float FOV = 500f;
         private const float SCALE = 2f;
         private const float OFFSET_X = 500f;
         private const float OFFSET_Y = 200f;
-
+        // 回転後の三角形リスト
+        private List<Triangle>? rotatedTriangles;
 
         public PRYmonitorPage()
         {
@@ -127,11 +126,20 @@ namespace DroneMonitor.Views
             // タイマー作成
             var timer = this.Dispatcher.CreateTimer();
             timer.Interval = TimeSpan.FromMilliseconds(33);  // ≒30fps
-            timer.Tick += (s, e) =>
-            {
-                canvasView.InvalidateSurface();
-            };
+            timer.Tick += OnTimerTick;
             timer.Start();
+        }
+        // ① タイマーではUIスレッドを阻害しない
+        private void OnTimerTick(object sender, EventArgs e)
+        {
+            // 重い処理はバックグラウンドへ
+            _ = Task.Run(async () =>
+            {
+                await RotateAndProjectAsync(pitch, roll, yaw);
+                // 描画リクエストはUIで
+                MainThread.BeginInvokeOnMainThread(() =>
+                    canvasView.InvalidateSurface());
+            });
         }
 
         protected override async void OnAppearing()
@@ -139,15 +147,28 @@ namespace DroneMonitor.Views
             base.OnAppearing();
 
             // 1) STL読み込み
-            loadedTriangles = await STLLoader.LoadFromResourceAsync("modelv46.stl");
+            loadedTriangles = await STLLoader.LoadFromResourceAsync("modelv46l.stl");
 
             // 2) モデル重心を算出（回転中心を安定化）
             var allPoints = loadedTriangles.SelectMany(t => t.Vertices);
             modelCenter = new Vector3(0,0,0);
 
+            ComputeModelCenterAndZRange();
+
             // 3) 初期回転を適用（例：Pitch=270で上向き補正）
-            await ApplyRotationAsync(270, 0, 0);
+            await RotateAndProjectAsync(90, roll, yaw);
             canvasView.InvalidateSurface();
+        }
+        protected override async void OnDisappearing()
+        {
+            base.OnDisappearing();
+            if (_bleService != null)
+            {
+                // 必要な通知キーを指定して停止
+                _bleService.StopNotificationAsync("PRY_Telem");
+                // 他にも通知を止めたいCharacteristicがあればここで追加
+                _bleService.NotificationReceived -= OnNotificationReceived;
+            }
         }
 
         public void StartNotificationAsync()
@@ -204,86 +225,8 @@ namespace DroneMonitor.Views
                     roll = floats[1];
                     yaw = floats[2];
                     Debug.WriteLine($"{pitch:F2}, {roll:F2}, {yaw:F2}");
-                    // バックグラウンドで重い回転計算を走らせる
-                    _ = ApplyRotationAsync(pitch, roll, yaw);
                 }
             });
-        }
-
-        void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
-        {
-            var canvas = e.Surface.Canvas;
-            canvas.Clear(SKColors.White);
-
-            // SKVertices を一括描画
-            if (skVerts != null)
-                canvas.DrawVertices(skVerts, SKBlendMode.SrcOver, fillPaint);
-
-            // 軸表示
-            DrawAxes(canvas);
-        }
-
-        async Task ApplyRotationAsync(float pitch, float roll, float yaw)
-        {
-            if (loadedTriangles == null || loadedTriangles.Count == 0)
-                return;
-
-            // 回転行列更新
-            var r = MathF.PI / 180f;
-            var rx = Matrix4x4.CreateRotationX(pitch * r);
-            var ry = Matrix4x4.CreateRotationY(roll * r);
-            var rz = Matrix4x4.CreateRotationZ(yaw * r);
-            rotationMatrix = rz * ry * rx;
-
-            // 頂点数×3 のバッファを確保
-            var projected = new SKPoint[loadedTriangles.Count * 3];
-            var colors = new SKColor[loadedTriangles.Count * 3];
-            var indices = new ushort[loadedTriangles.Count * 3];
-
-            ushort baseIndex = 0;
-            for (int i = 0; i < loadedTriangles.Count; i++)
-            {
-                var tri = loadedTriangles[i];
-
-                // 3D 回転＋重心移動 → 2D 投影
-                var v0 = Transform(tri.Vertices[0]);
-                var v1 = Transform(tri.Vertices[1]);
-                var v2 = Transform(tri.Vertices[2]);
-
-                projected[baseIndex + 0] = ProjectTo2D(v0);
-                projected[baseIndex + 1] = ProjectTo2D(v1);
-                projected[baseIndex + 2] = ProjectTo2D(v2);
-
-                // インデックス
-                indices[baseIndex + 0] = (ushort)(baseIndex + 0);
-                indices[baseIndex + 1] = (ushort)(baseIndex + 1);
-                indices[baseIndex + 2] = (ushort)(baseIndex + 2);
-
-                // Z に応じた擬似陰影（遠くほど暗く）
-                float zAvg = (v0.Z + v1.Z + v2.Z) / 3f;
-                float shade = Math.Clamp(1f - (zAvg / zMax), 0.2f, 1f);
-                byte bright = (byte)(shade * 255f);
-
-                var c = new SKColor(bright, bright, 255);
-
-                colors[baseIndex + 0] = c;
-                colors[baseIndex + 1] = c;
-                colors[baseIndex + 2] = c;
-
-                baseIndex += 3;
-            }
-
-            // SKVertices を一度だけ構築
-            skVerts = SKVertices.CreateCopy(
-                SKVertexMode.Triangles,
-                projected,
-                null,
-                colors,
-                indices);
-
-            // 再描画リクエスト
-            MainThread.BeginInvokeOnMainThread(() =>
-                canvasView.InvalidateSurface());
         }
 
         void ComputeModelCenterAndZRange()
@@ -299,14 +242,99 @@ namespace DroneMonitor.Views
             modelCenter = sum / pts.Length;
 
             // Z範囲
+            zMin = pts.Min(p => p.Z);
             zMax = pts.Max(p => p.Z);
         }
 
-        // SKPoint3 → 回転行列適用後の Vector3
-        Vector3 Transform(SKPoint3 pt)
+        /// <summary>
+        /// pitch/roll/yaw で回転し、rotatedTriangles を更新
+        /// </summary>
+        private async Task RotateAndProjectAsync(float pitchDeg, float rollDeg, float yawDeg)
         {
-            var v = new Vector3(pt.X, pt.Y, pt.Z) - modelCenter;
-            return Vector3.Transform(v, rotationMatrix) + modelCenter;
+            if (loadedTriangles.Count == 0)
+                return;
+
+            await Task.Run(() =>
+            {
+                var r = MathF.PI / 180f;
+                var rx = Matrix4x4.CreateRotationX((rollDeg+ 90) * r);
+                var ry = Matrix4x4.CreateRotationY(yawDeg * r);
+                var rz = Matrix4x4.CreateRotationZ(-pitchDeg * r);
+                rotationMatrix = rz * ry * rx;
+
+                var list = new List<Triangle>(loadedTriangles.Count);
+                foreach (var tri in loadedTriangles)
+                {
+                    var t = new Triangle();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        var v = tri.Vertices[i];
+                        var v3 = new Vector3(v.X, v.Y, v.Z);
+                        var rv = Vector3.Transform(v3, rotationMatrix);
+                        t.Vertices[i] = new Vector3(rv.X, rv.Y, rv.Z);
+                    }
+                    list.Add(t);
+                }
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                    rotatedTriangles = list);
+            });
+        }
+
+        void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
+        {
+            var canvas = e.Surface.Canvas;
+            canvas.Clear(SKColors.White);
+
+            var tris = rotatedTriangles ?? loadedTriangles;
+
+            // 2) 平均 Z と共にソート
+            var sorted = tris
+                .Select(tri =>
+                {
+                    // 各頂点を回転＋移動した Vector3 を得る
+                    var v0 = Transform(tri.Vertices[0]);
+                    var v1 = Transform(tri.Vertices[1]);
+                    var v2 = Transform(tri.Vertices[2]);
+                    // 平均 Z を計算
+                    float zAvg = GetAverageZ(v0, v1, v2);
+                    // tri と zAvg のタプルを返す
+                    return (tri, z: zAvg);
+                })
+                // Z の小さい（奥）順にソート
+                .OrderBy(item => item.z)
+                .ToArray();
+
+            // 3) 描画
+            foreach (var (tri, z) in sorted)
+            {
+                // 奥行きで色を決定（遠いほど０.２、手前ほど１.０）
+                float t = 1f - (z - zMin) / (zMax - zMin);
+                t = Math.Clamp(t, 0.2f, 1f);
+                byte v = (byte)(255 * t);
+
+                using var paint = new SKPaint
+                {
+                    Color = new SKColor(v, v, v),
+                    Style = SKPaintStyle.Fill,
+                    IsAntialias = true
+                };
+
+                // 投影
+                var p0 = ProjectTo2D(tri.Vertices[0]);
+                var p1 = ProjectTo2D(tri.Vertices[1]);
+                var p2 = ProjectTo2D(tri.Vertices[2]);
+
+                using var path = new SKPath();
+                path.MoveTo(p0);
+                path.LineTo(p1);
+                path.LineTo(p2);
+                path.Close();
+
+                canvas.DrawPath(path, paint);
+            }
+
+            DrawAxes(canvas);
         }
 
         SKPoint ProjectTo2D(Vector3 p)
@@ -318,7 +346,18 @@ namespace DroneMonitor.Views
                 p.X * s + OFFSET_X,
                 -p.Y * s + OFFSET_Y);
         }
+        // 3D→3D回転＋重心オフセット
+        Vector3 Transform(SKPoint3 pt)
+        {
+            var v = new Vector3(pt.X, pt.Y, pt.Z) - modelCenter;
+            return Vector3.Transform(v, rotationMatrix) + modelCenter;
+        }
 
+        // Vector3 の Z 成分の平均を返す
+        float GetAverageZ(Vector3 a, Vector3 b, Vector3 c)
+        {
+            return (a.Z + b.Z + c.Z) / 3f;
+        }
         void DrawAxes(SKCanvas canvas)
         {
             var o = modelCenter;
@@ -339,7 +378,5 @@ namespace DroneMonitor.Views
             canvas.DrawLine(o2, y2, py);
             canvas.DrawLine(o2, z2, pz);
         }
-
-
     }
 }

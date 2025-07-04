@@ -49,12 +49,15 @@ public class BleService
         try
         {
             await Adapter.StartScanningForDevicesAsync();
-            int wait = 0;
-            while (Device == null && wait < 100 && (token == null || !token.Value.IsCancellationRequested))
+            var tcs = new TaskCompletionSource<IDevice>();
+            Adapter.DeviceDiscovered += (s, e) =>
             {
-                await Task.Delay(100);
-                wait++;
-            }
+                if (e.Device.Name?.Contains(deviceName) == true)
+                    tcs.TrySetResult(e.Device);
+            };
+
+            await Adapter.StartScanningForDevicesAsync();
+            Device = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task ? tcs.Task.Result : null;
             await Adapter.StopScanningForDevicesAsync();
             Adapter.DeviceDiscovered -= OnDeviceDiscovered;
 
@@ -84,11 +87,16 @@ public class BleService
                 return false;
 
             // •K—v‚ÈCharacteristic‚ð‚·‚×‚ÄŽæ“¾‚µ‚ÄDictionary‚ÉŠi”[
-            await AddCharacteristic("Xhat_Telem", CHAR_UUID_Xhat_Telem);
-            await AddCharacteristic("PRY_Telem", CHAR_UUID_PRY_Telem);
-            await AddCharacteristic("contU_TelemWrite", CHAR_UUID_contU_TelemWrite);
-            await AddCharacteristic("ContGain_Upd", CHAR_UUID_ContGain_Upd);
-            await AddCharacteristic("Command", CHAR_UUID_Command);
+            var tasks = new[]
+            {
+                AddCharacteristic("Xhat_Telem", CHAR_UUID_Xhat_Telem),
+                AddCharacteristic("PRY_Telem", CHAR_UUID_PRY_Telem),
+                AddCharacteristic("contU_TelemWrite", CHAR_UUID_contU_TelemWrite),
+                AddCharacteristic("ContGain_Upd", CHAR_UUID_ContGain_Upd),
+                AddCharacteristic("Command", CHAR_UUID_Command)
+            };
+
+            await Task.WhenAll(tasks);
 
             // 1‚Â‚Å‚àŽæ“¾‚Å‚«‚È‚¯‚ê‚ÎŽ¸”s
             if (Characteristics.Count == 0)
