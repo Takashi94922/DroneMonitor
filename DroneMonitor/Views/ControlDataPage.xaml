@@ -99,11 +99,11 @@
                                Grid.ColumnSpan="2">
 
             <!-- テキスト入力欄 -->
-            <Entry x:Name="messageEntry"
+            <Editor x:Name="messageEntry"
                    Placeholder="KCを入力してください"
-                   ClearButtonVisibility="WhileEditing"
+                   AutoSize="TextChanges"
                    TextChanged="KCEntry_TextChanged"
-                   MaxLength="200" />
+                   MaxLength="400" />
 
             <!-- 送信ボタン -->
             <Button x:Name="KCUpdateButton"

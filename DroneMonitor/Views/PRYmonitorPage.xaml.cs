@@ -165,7 +165,7 @@ namespace DroneMonitor.Views
             if (_bleService != null)
             {
                 // 必要な通知キーを指定して停止
-                _bleService.StopNotificationAsync("PRY_Telem");
+                await _bleService.StopNotificationAsync("PRY_Telem");
                 // 他にも通知を止めたいCharacteristicがあればここで追加
                 _bleService.NotificationReceived -= OnNotificationReceived;
             }
@@ -201,16 +201,6 @@ namespace DroneMonitor.Views
             {
                 key = _bleService.Characteristics.FirstOrDefault(x => x.Value == characteristic).Key ?? "";
             }
-            else
-            {
-                // senderがBleService自身の場合（Invoke(this, data)のような実装）
-                // dataが一致するCharacteristicを探す
-                foreach (var pair in _bleService.Characteristics)
-                {
-                    // ここではValueUpdatedイベントのsenderがCharacteristicであることが前提
-                    // それ以外の場合はキーを特定できないので空文字
-                }
-            }
 
             Debug.WriteLine($"受信: key={key}, data={BitConverter.ToString(data)}");
             MainThread.BeginInvokeOnMainThread(() =>
@@ -224,6 +214,7 @@ namespace DroneMonitor.Views
                     pitch = floats[0];
                     roll = floats[1];
                     yaw = floats[2];
+                    pryWindow.Text = $"Pitch: {pitch:F2}°\nRoll: {roll:F2}°\nYaw: {yaw:F2}°";   
                     Debug.WriteLine($"{pitch:F2}, {roll:F2}, {yaw:F2}");
                 }
             });
@@ -257,9 +248,9 @@ namespace DroneMonitor.Views
             await Task.Run(() =>
             {
                 var r = MathF.PI / 180f;
-                var rx = Matrix4x4.CreateRotationX((rollDeg+ 90) * r);
-                var ry = Matrix4x4.CreateRotationY(yawDeg * r);
-                var rz = Matrix4x4.CreateRotationZ(-pitchDeg * r);
+                var rx = Matrix4x4.CreateRotationX((pitchDeg+ 90) * r);
+                var ry = Matrix4x4.CreateRotationY(rollDeg * r);
+                var rz = Matrix4x4.CreateRotationZ(yawDeg * r);
                 rotationMatrix = rz * ry * rx;
 
                 var list = new List<Triangle>(loadedTriangles.Count);

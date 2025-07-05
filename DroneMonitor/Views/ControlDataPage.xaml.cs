@@ -196,8 +196,8 @@ public partial class ControlDataPage : ContentPage
         if (_bleService != null)
         {
             // 必要な通知キーを指定して停止
-            _bleService.StopNotificationAsync("Xhat_Telem");
-            _bleService.StopNotificationAsync("contU_TelemWrite");
+            await _bleService.StopNotificationAsync("Xhat_Telem");
+            await _bleService.StopNotificationAsync("contU_TelemWrite");
             // 他にも通知を止めたいCharacteristicがあればここで追加
             _bleService.NotificationReceived -= OnNotificationReceived;
         }

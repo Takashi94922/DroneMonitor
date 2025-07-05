@@ -133,15 +133,15 @@ namespace DroneMonitor.Views
             throttleSeekBar.Value = Math.Max(throttleSeekBar.Value - 10, 0);
         }
 
-        protected override async void OnDisappearing()
+        protected override void OnDisappearing()
         {
             base.OnDisappearing();
             if (_bleService != null)
             {
+                _bleService.NotificationReceived -= OnNotificationReceived;
                 // 必要な通知キーを指定して停止
                 _bleService.StopNotificationAsync("Command");
                 // 他にも通知を止めたいCharacteristicがあればここで追加
-                _bleService.NotificationReceived -= OnNotificationReceived;
             }
         }
     }

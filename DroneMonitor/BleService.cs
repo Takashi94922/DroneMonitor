@@ -1,6 +1,8 @@
 using Plugin.BLE;
+using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.EventArgs;
+using Plugin.BLE.Abstractions.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -44,11 +46,21 @@ public class BleService
         Service = null;
         Characteristics.Clear();
 
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        
+        // スキャン時に使うフィルタ設定を作成
+        var filter = new ScanFilterOptions
+        {
+            // サービス UUID で絞り込み
+            //ServiceUuids = new[] { SERVICE_UUID },
+            DeviceAddresses = new[] { "4c:11:ae: eb: 91:86" }
+            // (必要ならDeviceName, ManufacturerDataFiltersなども指定可能)
+        };
+
         Adapter.DeviceDiscovered += OnDeviceDiscovered;
 
         try
         {
-            await Adapter.StartScanningForDevicesAsync();
             var tcs = new TaskCompletionSource<IDevice>();
             Adapter.DeviceDiscovered += (s, e) =>
             {
@@ -56,7 +68,8 @@ public class BleService
                     tcs.TrySetResult(e.Device);
             };
 
-            await Adapter.StartScanningForDevicesAsync();
+            await Adapter.StopScanningForDevicesAsync();
+            await Adapter.StartScanningForDevicesAsync(filter, cts.Token);
             Device = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task ? tcs.Task.Result : null;
             await Adapter.StopScanningForDevicesAsync();
             Adapter.DeviceDiscovered -= OnDeviceDiscovered;
@@ -67,6 +80,7 @@ public class BleService
             await Adapter.ConnectToDeviceAsync(Device);
 
             // --- MTU拡大リクエスト ---
+            /*
             try
             {
                 // Plugin.BLE の IDevice.RequestMtuAsync を利用
@@ -80,41 +94,52 @@ public class BleService
             {
                 // MTU拡大失敗時は無視
             }
+            */
             // -----------------------
 
             Service = await Device.GetServiceAsync(SERVICE_UUID);
-            if (Service == null)
-                return false;
-
-            // 必要なCharacteristicをすべて取得してDictionaryに格納
-            var tasks = new[]
+            var uuids = new[]
             {
-                AddCharacteristic("Xhat_Telem", CHAR_UUID_Xhat_Telem),
-                AddCharacteristic("PRY_Telem", CHAR_UUID_PRY_Telem),
-                AddCharacteristic("contU_TelemWrite", CHAR_UUID_contU_TelemWrite),
-                AddCharacteristic("ContGain_Upd", CHAR_UUID_ContGain_Upd),
-                AddCharacteristic("Command", CHAR_UUID_Command)
+                CHAR_UUID_Xhat_Telem,
+                CHAR_UUID_PRY_Telem,
+                CHAR_UUID_contU_TelemWrite,
+                CHAR_UUID_ContGain_Upd,
+                CHAR_UUID_Command
+            };
+            var keys = new[]
+            {
+                "Xhat_Telem",
+                "PRY_Telem",
+                "contU_TelemWrite",
+                "ContGain_Upd",
+                "Command"
             };
 
-            await Task.WhenAll(tasks);
+            var tasks = uuids.Select(u => Service.GetCharacteristicAsync(u));
+            var chars = await Task.WhenAll(tasks);
 
-            // 1つでも取得できなければ失敗
-            if (Characteristics.Count == 0)
-                return false;
+            for (int i = 0; i < uuids.Length; i++)
+            {
+                var c = chars[i];
+                if (c != null)
+                {
+                    // 例: uuids と同じ順番で "Xhat_Telem" などのキーを用意しておく
+                    var key = keys[i];
+                    Characteristics[key] = c;
+                }
+            }
 
             return true;
         }
-        catch
+        catch (OperationCanceledException)
         {
-            Adapter.DeviceDiscovered -= OnDeviceDiscovered;
             return false;
         }
-
-        async Task AddCharacteristic(string key, Guid uuid)
+        finally
         {
-            var characteristic = await Service.GetCharacteristicAsync(uuid);
-            if (characteristic != null)
-                Characteristics[key] = characteristic;
+            await Adapter.StopScanningForDevicesAsync();
+
+            Adapter.DeviceDiscovered -= OnDeviceDiscovered;
         }
 
         void OnDeviceDiscovered(object? sender, DeviceEventArgs e)
@@ -149,7 +174,7 @@ public class BleService
 
     public async Task DisconnectAsync()
     {
-        if (Device != null && Adapter.ConnectedDevices.Contains(Device))
+        if (IsConnected)
         {
             await Adapter.DisconnectDeviceAsync(Device);
         }
