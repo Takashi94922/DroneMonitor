@@ -25,21 +25,36 @@ namespace DroneMonitor.Views
     {
         public static async Task<List<Triangle>> LoadFromResourceAsync(string resourceFilename)
         {
-            using var stream = await FileSystem.OpenAppPackageFileAsync(resourceFilename);
-            using var reader = new BinaryReader(stream);
+            // 1) パッケージリソースを開く
+            await using var input = await FileSystem.OpenAppPackageFileAsync(resourceFilename);
 
-            var header = new string(reader.ReadChars(80));
-            stream.Seek(0, SeekOrigin.Begin);
+            // 2) メモリ上にコピーして Seek/Read を自由にできるようにする
+            using var ms = new MemoryStream();
+            await input.CopyToAsync(ms);
+            ms.Position = 0;
 
+            // 3) ヘッダ判定用に先頭80バイトだけ読む
+            using var reader = new BinaryReader(ms, System.Text.Encoding.ASCII, leaveOpen: true);
+            var headerBytes = reader.ReadBytes(80);
+            var header = System.Text.Encoding.ASCII.GetString(headerBytes);
+
+            // 4) 再度先頭に戻す
+            ms.Position = 0;
+
+            // 5) ASCII/STLバイナリ判定してロード
             if (header.StartsWith("solid", StringComparison.OrdinalIgnoreCase))
             {
-                using var sr = new StreamReader(stream);
-                return LoadAscii((await sr.ReadToEndAsync()).Split('\n'));
+                using var sr = new StreamReader(ms, System.Text.Encoding.ASCII, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+                var text = await sr.ReadToEndAsync();
+                return LoadAscii(text.Split('\n'));
             }
             else
             {
+                // BinaryReader は ms.Position の位置からバイナリ読み込みする
                 return LoadBinary(reader);
             }
+
+
         }
 
         private static List<Triangle> LoadAscii(string[] lines)
@@ -98,14 +113,6 @@ namespace DroneMonitor.Views
 
         // STL 読み込みデータ
         private List<Triangle> loadedTriangles = new();
-
-        // スクリーン投影済み頂点＋カラー＋インデックス
-        private readonly SKPaint fillPaint = new SKPaint
-        {
-            Color = SKColors.LightBlue,
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
 
         // 回転行列・モデル中心・Z最大値
         private Matrix4x4 rotationMatrix = Matrix4x4.Identity;
@@ -248,9 +255,9 @@ namespace DroneMonitor.Views
             await Task.Run(() =>
             {
                 var r = MathF.PI / 180f;
-                var rx = Matrix4x4.CreateRotationX((pitchDeg+ 90) * r);
+                var rx = Matrix4x4.CreateRotationX((-pitchDeg +270) * r);
                 var ry = Matrix4x4.CreateRotationY(rollDeg * r);
-                var rz = Matrix4x4.CreateRotationZ(yawDeg * r);
+                var rz = Matrix4x4.CreateRotationZ(-yawDeg * r);
                 rotationMatrix = rz * ry * rx;
 
                 var list = new List<Triangle>(loadedTriangles.Count);

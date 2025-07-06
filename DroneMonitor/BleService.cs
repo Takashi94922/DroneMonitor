@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Maui.ApplicationModel;
 
 public class BleService
 {
@@ -39,12 +40,22 @@ public class BleService
         Ble = CrossBluetoothLE.Current;
         Adapter = CrossBluetoothLE.Current.Adapter;
     }
+    async Task<bool> RequestBlePermissionsAsync()
+    {
+        // 位置情報権限をチェック＆リクエスト
+        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (status != PermissionStatus.Granted)
+            status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
+        return status == PermissionStatus.Granted;
+
+    }
     public async Task<bool> ConnectToDeviceAsync(string deviceName, CancellationToken? token = null)
     {
         Device = null;
         Service = null;
         Characteristics.Clear();
+        await RequestBlePermissionsAsync();
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         
@@ -53,7 +64,7 @@ public class BleService
         {
             // サービス UUID で絞り込み
             //ServiceUuids = new[] { SERVICE_UUID },
-            DeviceAddresses = new[] { "4c:11:ae: eb: 91:86" }
+            DeviceAddresses = new[] { "4c:11:ae:eb:91:86" }
             // (必要ならDeviceName, ManufacturerDataFiltersなども指定可能)
         };
 
