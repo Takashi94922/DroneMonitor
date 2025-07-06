@@ -36,6 +36,22 @@ namespace DroneMonitor
                 notify.SetBleService(_bleService);
             }
         }
+        private async Task DiconnectBleServiceToCurrentPage()
+        {
+            // ShellのCurrentPageは実際には現在表示中のContentPageインスタンス
+            if (CurrentPage is HomePage home)
+            {
+                await home.DisconnectBle();
+            }
+            else if (CurrentPage is PRYmonitorPage dash)
+            {
+                //dash.DisconnectBle();
+            }
+            else if (CurrentPage is ControlDataPage notify)
+            {
+                //notify.DisconnectBle();
+            }
+        }
 
         private async void OnBleConnectClicked(object sender, EventArgs e)
         {
@@ -53,12 +69,14 @@ namespace DroneMonitor
                 }
                 else
                 {
+                    // 接続失敗時の処理
                     await DisplayAlert("エラー", "接続できませんでした", "OK");
                     SetBleButtonState(false);
                 }
             }
             else
             {
+                await DiconnectBleServiceToCurrentPage();
                 await _bleService.DisconnectAsync();
                 _isConnected = false;
                 SetBleButtonState(_isConnected);

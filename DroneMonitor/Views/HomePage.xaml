@@ -10,13 +10,22 @@
             <!-- メッセージ表示 -->
             <Label x:Name="msgWindow"
                    Grid.Row="0"
-                   Grid.Column="2"
+                   Grid.Column="1"
                    Grid.ColumnSpan="2"
                    Text=""
                    FontSize="18"
                    HorizontalOptions="Center"
                    VerticalOptions="Start"
                    TextColor="Black" />
+            <Label x:Name="msgPad"
+                   Grid.Row="0"
+                   Grid.Column="1"
+                   Grid.ColumnSpan="3"
+                   Text="GamePad : False"
+                   FontSize="18"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Start"
+                   TextColor="Black" />            
 
             <!-- 左スロットル（FS） -->
             <Slider x:Name="S1SeekBar"
