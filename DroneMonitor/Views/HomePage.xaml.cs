@@ -5,6 +5,7 @@ using Plugin.BLE.Abstractions.EventArgs;
 using System.Diagnostics;
 #if WINDOWS
 using Windows.Gaming.Input;
+using Windows.Networking.Sockets;
 #endif
 
 namespace DroneMonitor.Views
@@ -18,6 +19,11 @@ namespace DroneMonitor.Views
             = new Dictionary<Slider, byte>();
         private readonly Slider[] _sliders;
         private IDispatcherTimer? _sendControlUTimer;
+        List<float> U5 = new List<float>
+            {
+                0, 0, 0, 0, 0
+            };
+
 
         // 変化量しきい値（= 送信するために必要な最小 Δ）
         private const byte SEND_THRESHOLD = 1;
@@ -118,29 +124,76 @@ namespace DroneMonitor.Views
                 msgPad.Text = $"GamePad : {_isControlByPad}";
                 Debug.WriteLine($"操作ボタンが押れました{_isControlByPad}");
             }
+
             _lastButtons = reading.Buttons;
 
-            // 例：スティック操作の読み取り
-            double lx = reading.LeftThumbstickX;
-            double ly = reading.LeftThumbstickY;
+            if (!_isControlByPad) return;
 
-            // スティックの変化をUIや3Dビューに反映
-            ControlWithLeftStick(lx, ly);
+            U5 = new List<float>
+            {
+                0, 0, 0, 0, 0
+            };
+            //Left Stick for rolling and pitching
+            ControlRollPitch((float)reading.LeftThumbstickX, (float)reading.LeftThumbstickY);
+            //Right Stick for throttle
+            ControlThrottle((float)reading.RightThumbstickY);
+            //L/R triggers for yaw
+            ControlYaw((float)reading.LeftTrigger, (float)reading.RightTrigger);
+
+            for (int i = 0; i < _sliders.Length; i++)
+            {
+                if (_sliders[i] == throttleSeekBar)
+                {
+                    // スロットルは 0 から始まる
+                    _sliders[i].Value = U5[i];
+                }
+                else
+                {
+                    _sliders[i].Value = U5[i] + 50;
+                }
+            }
         }
 
-        private void ControlWithLeftStick(double x, double y)
+        private void ControlRollPitch(float rollStick, float pitchStick)
         {
-            if (!_isControlByPad) return;
-            
-            const double DEAD_ZONE = 0.15; // 入力がこの範囲内なら無視
-            const double SENSITIVITY = 50.0; // スティックの傾きに掛ける係数
+            const float DEAD_ZONE = 0.15f;      // デッドゾーンの閾値
+            const float ROLL_SENSITIVITY = 30; // ロール感度
+            const float PITCH_SENSITIVITY = 30;// ピッチ感度
 
-            // デッドゾーン適用
-            double dx = Math.Abs(x) < DEAD_ZONE ? 0 : x;
-            double dy = Math.Abs(y) < DEAD_ZONE ? 0 : y;
+            // デッドゾーン処理
+            float dx = Math.Abs(rollStick) < DEAD_ZONE ? 0 : rollStick;
+            float dy = Math.Abs(pitchStick) < DEAD_ZONE ? 0 : pitchStick;
 
-            S1SeekBar.Value = Math.Clamp(50 + dx * SENSITIVITY, S1SeekBar.Minimum, S1SeekBar.Maximum);
-            S2SeekBar.Value = Math.Clamp(50 + dy * SENSITIVITY, S2SeekBar.Minimum, S2SeekBar.Maximum);
+            // 各モーター／サーボ出力を計算
+            // U5[1]：Front-Left, U5[2]：Front-Right
+            // U5[3]：Back-Right,  U5[4]：Back-Left という想定
+            U5[1] = + dx * ROLL_SENSITIVITY + dy * PITCH_SENSITIVITY;
+            U5[2] = - dx * ROLL_SENSITIVITY + dy * PITCH_SENSITIVITY;
+            U5[3] = - dx * ROLL_SENSITIVITY - dy * PITCH_SENSITIVITY;
+            U5[4] = + dx * ROLL_SENSITIVITY - dy * PITCH_SENSITIVITY;
+        }
+        private void ControlThrottle(float throttleStick)
+        {
+            const float DEAD_ZONE = 0.15f;      // デッドゾーンの閾値
+            const float THR_SENSITIVITY = 100; // Throttle
+
+            // デッドゾーン処理
+            float dx = Math.Abs(throttleStick) < DEAD_ZONE ? 0 : throttleStick;
+
+            U5[0] = (float)Math.Clamp(dx * THR_SENSITIVITY, throttleSeekBar.Minimum, throttleSeekBar.Maximum);
+        }
+        private void ControlYaw(float YawPls, float YawMins)
+        {
+            const float DEAD_ZONE = 1;      // デッドゾーンの閾値
+            const float YAW_SENSITIVITY = 10; // YAW
+            // デッドゾーン処理
+            float dx = Math.Abs(YawPls) < DEAD_ZONE ? 0 : YawPls;
+            float dy = Math.Abs(YawMins) < DEAD_ZONE ? 0 : YawMins;
+
+            U5[1] += +(YawPls - YawMins) * YAW_SENSITIVITY;
+            U5[2] += +(YawPls - YawMins) * YAW_SENSITIVITY;
+            U5[3] += +(YawPls - YawMins) * YAW_SENSITIVITY;
+            U5[4] += +(YawPls - YawMins) * YAW_SENSITIVITY;
         }
 #endif
 
@@ -159,6 +212,7 @@ namespace DroneMonitor.Views
 #if WINDOWS
             _gamepadTimer?.Start();
 #endif
+
 
             // 各スライダーのイベント登録と、初期値 50 をセット
             foreach (var s in _sliders)
