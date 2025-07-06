@@ -40,21 +40,38 @@ namespace DroneMonitor.Views
 
             // 4) 再度先頭に戻す
             ms.Position = 0;
+            List<Triangle> triangles;
 
             // 5) ASCII/STLバイナリ判定してロード
             if (header.StartsWith("solid", StringComparison.OrdinalIgnoreCase))
             {
                 using var sr = new StreamReader(ms, System.Text.Encoding.ASCII, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
                 var text = await sr.ReadToEndAsync();
-                return LoadAscii(text.Split('\n'));
+                triangles = LoadAscii(text.Split('\n'));
             }
             else
             {
                 // BinaryReader は ms.Position の位置からバイナリ読み込みする
-                return LoadBinary(reader);
+                triangles = LoadBinary(reader);
             }
 
+            #if ANDROID
+                // Android のときだけ約半分に間引く
+                triangles = ReduceTriangles(triangles, factor: 2);
+            #endif
 
+            return triangles;
+
+        }
+        static List<Triangle> ReduceTriangles(List<Triangle> triangles, int factor)
+        {
+            if (factor <= 1)
+                return triangles;
+
+            var reduced = new List<Triangle>(triangles.Count / factor + 1);
+            for (int i = 0; i < triangles.Count; i += factor)
+                reduced.Add(triangles[i]);
+            return reduced;
         }
 
         private static List<Triangle> LoadAscii(string[] lines)
@@ -286,42 +303,45 @@ namespace DroneMonitor.Views
 
             var tris = rotatedTriangles ?? loadedTriangles;
 
-            // 2) 平均 Z と共にソート
-            var sorted = tris
-                .Select(tri =>
-                {
-                    // 各頂点を回転＋移動した Vector3 を得る
-                    var v0 = Transform(tri.Vertices[0]);
-                    var v1 = Transform(tri.Vertices[1]);
-                    var v2 = Transform(tri.Vertices[2]);
-                    // 平均 Z を計算
-                    float zAvg = GetAverageZ(v0, v1, v2);
-                    // tri と zAvg のタプルを返す
-                    return (tri, z: zAvg);
-                })
-                // Z の小さい（奥）順にソート
-                .OrderBy(item => item.z)
-                .ToArray();
-
-            // 3) 描画
-            foreach (var (tri, z) in sorted)
+            // Zソート
+            var sorted = tris.Select(tri =>
             {
-                // 奥行きで色を決定（遠いほど０.２、手前ほど１.０）
-                float t = 1f - (z - zMin) / (zMax - zMin);
+                // 3D回転＋重心オフセット済みの頂点を得る
+                var v0 = Transform(tri.Vertices[0]);
+                var v1 = Transform(tri.Vertices[1]);
+                var v2 = Transform(tri.Vertices[2]);
+                float zAvg = GetAverageZ(v0, v1, v2);
+                return (tri, v0, v1, v2, zAvg);
+            })
+            .OrderBy(item => item.zAvg)
+            .ToArray();
+
+            foreach (var (tri, v0, v1, v2, zAvg) in sorted)
+            {
+                // --- バックフェイスカリング ---
+                var edge1 = v1 - v0;
+                var edge2 = v2 - v0;
+                var normal = Vector3.Cross(edge1, edge2);
+                // カメラ視線＝(0,0,1) と仮定 → dot>0 のものだけ描画
+                if (Vector3.Dot(normal, new Vector3(0, 0, 1)) <= 0)
+                    continue;
+
+                // 奥行きで色を決定
+                float t = 1f - (zAvg - zMin) / (zMax - zMin);
                 t = Math.Clamp(t, 0.2f, 1f);
-                byte v = (byte)(255 * t);
+                byte vcol = (byte)(255 * t);
 
                 using var paint = new SKPaint
                 {
-                    Color = new SKColor(v, v, v),
+                    Color = new SKColor(vcol, vcol, vcol),
                     Style = SKPaintStyle.Fill,
                     IsAntialias = true
                 };
 
-                // 投影
-                var p0 = ProjectTo2D(tri.Vertices[0]);
-                var p1 = ProjectTo2D(tri.Vertices[1]);
-                var p2 = ProjectTo2D(tri.Vertices[2]);
+                // 2D投影
+                var p0 = ProjectTo2D(v0);
+                var p1 = ProjectTo2D(v1);
+                var p2 = ProjectTo2D(v2);
 
                 using var path = new SKPath();
                 path.MoveTo(p0);
@@ -333,6 +353,7 @@ namespace DroneMonitor.Views
             }
 
             DrawAxes(canvas);
+
         }
 
         SKPoint ProjectTo2D(Vector3 p)
