@@ -11,14 +11,20 @@
                HorizontalOptions="Center"
                TextColor="Black" />
 
-        <Frame HasShadow="True"
-               BorderColor="Gray"
-               CornerRadius="8"
-               Padding="0"
-               HeightRequest="500">
-            <skia:SKCanvasView x:Name="canvasView"
-                               PaintSurface="OnCanvasViewPaintSurface" />
-        </Frame>
+        <Border
+          Stroke="Gray"
+          StrokeThickness="1"
+          Background="White"
+          Padding="0"
+          HeightRequest="500"
+          Shadow="8,8,16,0.5">
+
+          <skia:SKCanvasView
+            x:Name="canvasView"
+            PaintSurface="OnCanvasViewPaintSurface" />
+        </Border>
+
+
     </VerticalStackLayout>
 
 </ContentPage>

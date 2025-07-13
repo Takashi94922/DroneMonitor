@@ -8,7 +8,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
-
+using DroneMonitor.Views;
 
 namespace DroneMonitor.Views
 {

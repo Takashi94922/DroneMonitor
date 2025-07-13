@@ -1,17 +1,19 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="DroneMonitor.Views.HomePage"
+             xmlns:android="clr-namespace:DroneMonitor.Platforms.Android"
              Title="BT DRONE">
     <StackLayout>
         <Grid Padding="10"
-              RowDefinitions="Auto, *, Auto"
+              RowDefinitions="Auto, 165, Auto, Auto"
               ColumnDefinitions="Auto,*,*,*,*,Auto">
 
             <!-- メッセージ表示 -->
             <Label x:Name="msgWindow"
                    Grid.Row="0"
-                   Grid.Column="1"
-                   Grid.ColumnSpan="2"
+                   Grid.Column="0"
+                   Grid.ColumnSpan="3"
                    Text=""
                    FontSize="18"
                    HorizontalOptions="Center"
@@ -34,7 +36,7 @@
                     Rotation="-90"
                     Maximum="100"
                     Value="50"
-                    HeightRequest="172"
+                    HeightRequest="72"
                     WidthRequest="160"
                     VerticalOptions="Center" />
 
@@ -45,7 +47,7 @@
                     Rotation="-90"
                     Maximum="100"
                     Value="50"
-                    HeightRequest="172"
+                    HeightRequest="72"
                     WidthRequest="160"
                     VerticalOptions="Center" />
 
@@ -56,7 +58,7 @@
                     Rotation="-90"
                     Maximum="100"
                     Value="0"
-                    HeightRequest="172"
+                    HeightRequest="72"
                     WidthRequest="160"
                     VerticalOptions="Center" />
 
@@ -67,7 +69,7 @@
                     Rotation="-90"
                     Maximum="100"
                     Value="50"
-                    HeightRequest="172"
+                    HeightRequest="72"
                     WidthRequest="160"
                     VerticalOptions="Center" />
 
@@ -78,7 +80,7 @@
                     Rotation="-90"
                     Maximum="100"
                     Value="50"
-                    HeightRequest="172"
+                    HeightRequest="72"
                     WidthRequest="160"
                     VerticalOptions="Center" />
 
@@ -99,6 +101,11 @@
                     WidthRequest="50"
                     HorizontalOptions="End"
                     VerticalOptions="End" />
+            <OnPlatform x:TypeArguments="View">
+                <On Platform="Android">
+                    <android:JoystickView />
+                </On>
+            </OnPlatform>
         </Grid>
     </StackLayout>
 </ContentPage>
