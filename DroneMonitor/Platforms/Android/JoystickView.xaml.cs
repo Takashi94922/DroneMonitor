@@ -1,7 +1,3 @@
-using Microsoft.Maui.Controls;   // TouchEventArgs の定義
-using Microsoft.Maui.Graphics;   // PointF 等
-using System.Linq;               // touches.FirstOrDefault() を使う場合
-
 namespace DroneMonitor.Platforms.Android
 {
     public partial class JoystickView : ContentView
@@ -15,14 +11,14 @@ namespace DroneMonitor.Platforms.Android
 
             var activity = Platform.CurrentActivity;
             var nativeView = Platform.CurrentActivity?.Window?.DecorView?.RootView;
-            if (activity != null && nativeView != null)
-            {
-                _androidHandler = new AndroidGamepadHandler(nativeView);
-            }
 
             JoystickCanvas.StartInteraction += OnStartInteraction;
             JoystickCanvas.DragInteraction += OnDragInteraction;
             JoystickCanvas.EndInteraction += OnEndInteraction;
+        }
+        public void SetGamepadHandler(AndroidGamepadHandler handler)
+        {
+            _androidHandler = handler;
         }
         // ↓ この 3 つを必ずこのまま（アクセス修飾子は public でも private でも OK）
         public void OnStartInteraction(object sender, TouchEventArgs e)
@@ -64,7 +60,7 @@ namespace DroneMonitor.Platforms.Android
 
         void ApplyVirtualStick(float stickX, float stickY)
         {
-            // 既存の U5 更新ロジックを呼ぶ
+            if(_androidHandler != null)_androidHandler.OnStickChanged(stickX, stickY);
         }
     }
 }

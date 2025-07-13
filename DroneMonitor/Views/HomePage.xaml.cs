@@ -3,12 +3,7 @@ using DroneMonitor.Platforms.Android;
 #elif WINDOWS
 using DroneMonitor.Platforms.Windows;
 #endif
-using Microsoft.Maui.Controls;
-using Plugin.BLE;
-using Plugin.BLE.Abstractions.Contracts;
-using Plugin.BLE.Abstractions.EventArgs;
 using System.Diagnostics;
-using System.Windows.Input;
 
 namespace DroneMonitor.Views
 {
@@ -23,8 +18,9 @@ namespace DroneMonitor.Views
         private const byte SEND_THRESHOLD = 1;
 #if WINDOWS
         private WindowsGamepadHandler? _gamepadHandler;
+#elif ANDROID
+        private AndroidGamepadHandler? _gamepadHandler;
 #endif
-
         public HomePage()
         {        
             InitializeComponent();
@@ -54,14 +50,13 @@ namespace DroneMonitor.Views
         protected override void OnAppearing()
         {
             base.OnAppearing();
-
 #if WINDOWS
-            _gamepadHandler = new WindowsGamepadHandler(
-                throttleSeekBar,
-                _lastSentValues,
-                _sliders,
-                msgPad  // ← 状態表示用の Label
-            );
+            _gamepadHandler = new WindowsGamepadHandler(_lastSentValues, _sliders, msgPad);
+#endif
+#if ANDROID
+            _gamepadHandler = new AndroidGamepadHandler(_lastSentValues, _sliders, msgPad);
+            // Android では JoystickView を使う場合、AndroidGamepadHandler を使う
+            joystickView.SetGamepadHandler(_gamepadHandler);
 #endif
         }
 
@@ -93,20 +88,16 @@ namespace DroneMonitor.Views
                     s.Value = 50;              // UIも50スタートにしたい場合
                 }
             }
-#if WINDOWS
             if (_gamepadHandler != null)
             {
                 _gamepadHandler.Start(); // ゲームパッドのポーリング開始
             }
-#endif
         }
         async public Task DisconnectBle()
         {
             _bleService.NotificationReceived -= OnNotificationReceived;
             _sendControlUTimer?.Stop();
-#if WINDOWS
              _gamepadHandler?.Dispose(); // ← 新しい Dispose メソッドでゲームパッド処理を停止
-#endif
 
             try
             {
@@ -177,12 +168,12 @@ namespace DroneMonitor.Views
 
         private void OnPlusClicked(object? sender, EventArgs e)
         {
-            throttleSeekBar.Value = Math.Min(throttleSeekBar.Value + 10, throttleSeekBar.Maximum);
+            throttleSeekBar.Value = Math.Min(throttleSeekBar.Value + 1, throttleSeekBar.Maximum);
         }
 
         private void OnMinusClicked(object? sender, EventArgs e)
         {
-            throttleSeekBar.Value = Math.Max(throttleSeekBar.Value - 10, 0);
+            throttleSeekBar.Value = Math.Max(throttleSeekBar.Value - 1, 0);
         }
 
         protected override void OnDisappearing()
@@ -191,9 +182,7 @@ namespace DroneMonitor.Views
             if (_bleService != null)
             {
                 _sendControlUTimer?.Stop();
-#if WINDOWS
-    _gamepadHandler?.Dispose();  // ゲームパッド停止
-#endif
+                 _gamepadHandler?.Dispose();  // ゲームパッド停止
 
                 _bleService.NotificationReceived -= OnNotificationReceived;
                 // 必要な通知キーを指定して停止

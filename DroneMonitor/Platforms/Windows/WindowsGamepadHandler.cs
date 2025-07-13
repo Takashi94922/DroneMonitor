@@ -1,52 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
+﻿using System.Diagnostics;
 using Windows.Gaming.Input;
-using Windows.Networking.Sockets;
 
 namespace DroneMonitor.Platforms.Windows
 {
-    public class WindowsGamepadHandler
+    public class WindowsGamepadHandler : GamepadHandler
     {
-        public bool IsControlByPad { get; private set; } = false;
-        public bool IsThrottleByPad { get; private set; } = false;
-        public List<float> U5 { get; private set; } = new() { 0, 0, 0, 0, 0 };
-
         private Gamepad? _gamepad;
         private GamepadButtons _lastButtons = GamepadButtons.None;
         private IDispatcherTimer? _gamepadTimer;
-        private readonly Slider throttleSeekBar;
-        private readonly Dictionary<Slider, byte> lastSentValues;
-        private readonly Slider[] sliders;
-        private readonly Label msgPad;
-
-        public WindowsGamepadHandler(
-            Slider throttleSlider,
-            Dictionary<Slider, byte> sentValues,
-            Slider[] sliderArray,
-            Label messageLabel)
+        
+        public WindowsGamepadHandler(Dictionary<Slider, byte> sentValues, Slider[] sliderArray, Label messageLabel)
+            : base(sentValues, sliderArray, messageLabel)
         {
-            throttleSeekBar = throttleSlider;
-            lastSentValues = sentValues;
-            sliders = sliderArray;
-            msgPad = messageLabel;
-
+        }
+        public override void Init()
+        {
             Gamepad.GamepadAdded += OnGamepadAdded;
             Gamepad.GamepadRemoved += OnGamepadRemoved;
 
             _gamepad = Gamepad.Gamepads.FirstOrDefault();
-            if (_gamepad != null) StartPolling();
+            Start();
         }
-        public void Start()
+        public override void Start()
         {
             if (_gamepad != null) StartPolling();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _gamepadTimer?.Stop();
             Gamepad.GamepadAdded -= OnGamepadAdded;
@@ -132,7 +112,7 @@ namespace DroneMonitor.Platforms.Windows
             else
             {
                 //制御無効な場合はスロットルをスライダーの値にする
-                U5[0] = lastSentValues[throttleSeekBar];
+                U5[0] = lastSentValues[sliders[0]];
             }
 
             //Servoのオフセットを追加
