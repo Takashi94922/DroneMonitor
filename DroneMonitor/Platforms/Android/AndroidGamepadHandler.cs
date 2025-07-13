@@ -10,7 +10,6 @@ namespace DroneMonitor.Platforms.Android
         }
         public override void Init()
         {
-            Start();
         }
         public override void Start()
         {
@@ -26,7 +25,7 @@ namespace DroneMonitor.Platforms.Android
 
             // スティックの値を取得して制御
             ControlRollPitch(x, y);
-            ControlYaw(x, y);
+            //ControlYaw(x, y);
 
             //Servoのオフセットを追加
             for (int i = 0; i < sliders.Length; i++)

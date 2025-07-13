@@ -4,6 +4,7 @@ namespace DroneMonitor.Platforms.Android
     {
         private AndroidGamepadHandler? _androidHandler;
         public JoystickDrawable JoystickDrawable { get; } = new JoystickDrawable();
+
         public JoystickView()
         {
             InitializeComponent();
@@ -16,10 +17,12 @@ namespace DroneMonitor.Platforms.Android
             JoystickCanvas.DragInteraction += OnDragInteraction;
             JoystickCanvas.EndInteraction += OnEndInteraction;
         }
+
         public void SetGamepadHandler(AndroidGamepadHandler handler)
         {
             _androidHandler = handler;
         }
+        
         // ↓ この 3 つを必ずこのまま（アクセス修飾子は public でも private でも OK）
         public void OnStartInteraction(object sender, TouchEventArgs e)
           => UpdateStickPosition(e);
