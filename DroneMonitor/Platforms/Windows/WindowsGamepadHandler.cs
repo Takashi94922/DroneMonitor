@@ -102,23 +102,45 @@ namespace DroneMonitor.Platforms.Windows
                 Debug.WriteLine($"Bボタンで切り替え: {IsThrottleByPad}");
             }
 
-            _lastButtons = reading.Buttons;
-
+            // Aボタンが押されていない場合は制御を無効化
             if (!IsControlByPad) return;
 
-            U5 = new() { 0, 0, 0, 0, 0 };
+            U5 = new List<float> { U5[0], 0, 0, 0, 0 }; // U5をリセット
 
+            // スティックの値を取得して制御
             ControlRollPitch((float)reading.LeftThumbstickX, (float)reading.LeftThumbstickY);
-
-            if (IsThrottleByPad) ControlThrottle((float)reading.RightThumbstickY);
-            else U5[0] = lastSentValues[throttleSeekBar];
-
             ControlYaw((float)reading.LeftTrigger, (float)reading.RightTrigger);
 
+            // スロットルの制御
+            if (IsThrottleByPad)
+            {
+                if (!_lastButtons.HasFlag(GamepadButtons.LeftShoulder) && reading.Buttons.HasFlag(GamepadButtons.LeftShoulder))
+                {
+                    // LTでスロットルを10%減らす
+                    U5[0] = (float)Math.Max(U5[0] - 10, 0);
+                    Debug.WriteLine("LTボタンが押されました");
+                }
+                else if (!_lastButtons.HasFlag(GamepadButtons.RightShoulder) && reading.Buttons.HasFlag(GamepadButtons.RightShoulder))
+                {
+                    // RTでスロットルを10%増やす
+                    U5[0] = (float)Math.Min(U5[0] + 10, 100);
+                    Debug.WriteLine("RTボタンが押されました");
+                }
+                // スロットルの右スティックY軸
+                ControlThrottle((float)reading.RightThumbstickY);
+            }
+            else
+            {
+                //制御無効な場合はスロットルをスライダーの値にする
+                U5[0] = lastSentValues[throttleSeekBar];
+            }
+
+            //Servoのオフセットを追加
             for (int i = 0; i < sliders.Length; i++)
             {
                 sliders[i].Value = i == 0 ? U5[i] : U5[i] + 50;
             }
+            _lastButtons = reading.Buttons;
         }
 
         private void ControlRollPitch(float rollStick, float pitchStick)
@@ -136,15 +158,6 @@ namespace DroneMonitor.Platforms.Windows
             U5[4] = +dx * ROLL_SENS - dy * PITCH_SENS;
         }
 
-        private void ControlThrottle(float throttleStick)
-        {
-            const float DEAD_ZONE = 0.15f;
-            const float THR_SENS = 100f;
-
-            float dx = Math.Abs(throttleStick) < DEAD_ZONE ? 0 : throttleStick;
-            U5[0] = (float)Math.Clamp(dx * THR_SENS, throttleSeekBar.Minimum, throttleSeekBar.Maximum);
-        }
-
         private void ControlYaw(float yawPls, float yawMins)
         {
             const float DEAD_ZONE = 1f;
@@ -155,6 +168,15 @@ namespace DroneMonitor.Platforms.Windows
             float delta = (dx - dy) * YAW_SENS;
 
             for (int i = 1; i < 5; i++) U5[i] += delta;
+        
+        }
+        private void ControlThrottle(float throttleStick)
+        {
+            const float DEAD_ZONE = 0.15f;
+            const float THR_SENS = 1f;
+
+            float dx = Math.Abs(throttleStick) < DEAD_ZONE ? 0 : throttleStick;
+            U5[0] = (float)Math.Clamp(U5[0] + dx * THR_SENS, 0, 100);
         }
     }
 }
