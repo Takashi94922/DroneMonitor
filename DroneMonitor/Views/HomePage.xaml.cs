@@ -93,6 +93,12 @@ namespace DroneMonitor.Views
                     s.Value = 50;              // UIも50スタートにしたい場合
                 }
             }
+#if WINDOWS
+            if (_gamepadHandler != null)
+            {
+                _gamepadHandler.Start(); // ゲームパッドのポーリング開始
+            }
+#endif
         }
         async public Task DisconnectBle()
         {
