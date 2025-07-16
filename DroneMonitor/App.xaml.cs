@@ -1,4 +1,6 @@
-﻿namespace DroneMonitor
+﻿using System.Diagnostics;
+
+namespace DroneMonitor
 {
     public partial class App : Application
     {

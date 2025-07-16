@@ -1,14 +1,10 @@
-using Microsoft.Maui.Dispatching;
 using Plugin.BLE.Abstractions.Contracts;
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
-using SkiaSharp.Views.Maui.Controls;
-
+using SkiaSharp.Views.Maui.Controls.Hosting;
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
-using System.Reflection;
-using DroneMonitor.Views;
 
 namespace DroneMonitor.Views
 {
@@ -99,7 +95,7 @@ namespace DroneMonitor.Views
 
         private static List<Triangle> LoadBinary(BinaryReader reader)
         {
-            Debug.WriteLine("バイナリSTLファイルの読み込みを開始");
+            Console.WriteLine("バイナリSTLファイルの読み込みを開始");
             reader.BaseStream.Seek(80, SeekOrigin.Begin); // skip header
             uint triangleCount = reader.ReadUInt32();
             var triangles = new List<Triangle>((int)triangleCount);
@@ -118,11 +114,11 @@ namespace DroneMonitor.Views
                 reader.ReadUInt16(); // skip attribute byte count
                 triangles.Add(triangle);
             }
-            Debug.WriteLine($"バイナリSTLファイルの読み込み完了: {triangleCount} triangles");
+            Console.WriteLine($"バイナリSTLファイルの読み込み完了: {triangleCount} triangles");
             return triangles;
         }
     }
-
+    
     public partial class PRYmonitorPage : ContentPage
     {
         private BleService? _bleService;
@@ -146,13 +142,35 @@ namespace DroneMonitor.Views
 
         public PRYmonitorPage()
         {
-            InitializeComponent();
+            Debug.WriteLine("PRYmonitorPage コンストラクタの前");
+            try
+            {
+                InitializeComponent();
+            }
+            catch (Exception ex)
+            {
+                // ここでエラー内容を可視化
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    await DisplayAlert(
+                        "XAML 初期化失敗",
+                        ex.GetType().Name + "\n" +
+                        ex.Message + "\n\n" +
+                        ex.StackTrace,
+                        "OK");
+                });
+                throw;  // さらに落とすならそのまま
+            }
+
+            Debug.WriteLine("PRYmonitorPage コンストラクタ");
+
             // タイマー作成
             var timer = this.Dispatcher.CreateTimer();
             timer.Interval = TimeSpan.FromMilliseconds(33);  // ≒30fps
             timer.Tick += OnTimerTick;
             timer.Start();
         }
+
         // ① タイマーではUIスレッドを阻害しない
         private void OnTimerTick(object sender, EventArgs e)
         {
@@ -169,7 +187,8 @@ namespace DroneMonitor.Views
         protected override async void OnAppearing()
         {
             base.OnAppearing();
-
+            
+            Debug.WriteLine("PRYmonitorPage OnAppearing");
             // 1) STL読み込み
             loadedTriangles = await STLLoader.LoadFromResourceAsync("modelv46l.stl");
 
@@ -182,7 +201,9 @@ namespace DroneMonitor.Views
             // 3) 初期回転を適用（例：Pitch=270で上向き補正）
             await RotateAndProjectAsync(90, roll, yaw);
             canvasView.InvalidateSurface();
+            Debug.WriteLine($"モデル読み込み完了");
         }
+
         protected override async void OnDisappearing()
         {
             base.OnDisappearing();
@@ -199,7 +220,7 @@ namespace DroneMonitor.Views
         {
             // 通知開始の成否をログ出力
             _bleService.StartNotificationAsync("PRY_Telem").ContinueWith(t =>
-                Debug.WriteLine($"PRY_Telem通知開始: {t.Result}"));
+                Console.WriteLine($"PRY_Telem通知開始: {t.Result}"));
         }
         public void SetBleService(BleService bleService)
         {
@@ -216,7 +237,7 @@ namespace DroneMonitor.Views
         {
             if (_bleService == null)
             {
-                Debug.WriteLine("BLE 未接続");
+                Console.WriteLine("BLE 未接続");
                 return;
             }
 
@@ -235,15 +256,15 @@ namespace DroneMonitor.Views
                     for (int i = 0; i < 3; i++)
                         floats[i] = BitConverter.ToSingle(data, i * 4);
 
-                    pitch = floats[0];
-                    roll = floats[1];
-                    yaw = floats[2];
+                    pitch = floats[0] *  180.0f / (float)Math.PI;
+                    roll = floats[1] * 180.0f / (float)Math.PI;
+                    yaw = floats[2] * 180.0f / (float)Math.PI;
                     pryWindow.Text = $"Pitch: {pitch:F2}°\nRoll: {roll:F2}°\nYaw: {yaw:F2}°";   
                     Debug.WriteLine($"{pitch:F2}, {roll:F2}, {yaw:F2}");
                 }
             });
         }
-
+        
         void ComputeModelCenterAndZRange()
         {
             var pts = loadedTriangles
@@ -272,9 +293,9 @@ namespace DroneMonitor.Views
             await Task.Run(() =>
             {
                 var r = MathF.PI / 180f;
-                var rx = Matrix4x4.CreateRotationX((-pitchDeg +270) * r);
-                var ry = Matrix4x4.CreateRotationY(rollDeg * r);
-                var rz = Matrix4x4.CreateRotationZ(-yawDeg * r);
+                var ry = Matrix4x4.CreateRotationX(pitchDeg * r);
+                var rx = Matrix4x4.CreateRotationY(rollDeg * r);
+                var rz = Matrix4x4.CreateRotationZ(yawDeg * r);
                 rotationMatrix = rz * ry * rx;
 
                 var list = new List<Triangle>(loadedTriangles.Count);
@@ -295,7 +316,7 @@ namespace DroneMonitor.Views
                     rotatedTriangles = list);
             });
         }
-
+        
         void OnCanvasViewPaintSurface(object sender, SKPaintSurfaceEventArgs e)
         {
             var canvas = e.Surface.Canvas;

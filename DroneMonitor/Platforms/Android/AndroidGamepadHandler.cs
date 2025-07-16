@@ -1,4 +1,4 @@
-﻿using Syncfusion.Maui.Sliders;
+﻿
 
 namespace DroneMonitor.Platforms.Android
 {

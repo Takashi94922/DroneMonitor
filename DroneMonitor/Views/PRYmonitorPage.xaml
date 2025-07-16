@@ -19,12 +19,9 @@
           HeightRequest="500"
           Shadow="8,8,16,0.5">
 
-          <skia:SKCanvasView
+        <skia:SKCanvasView
             x:Name="canvasView"
             PaintSurface="OnCanvasViewPaintSurface" />
         </Border>
-
-
-    </VerticalStackLayout>
-
+      </VerticalStackLayout>
 </ContentPage>
