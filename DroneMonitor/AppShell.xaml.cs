@@ -27,10 +27,6 @@ namespace DroneMonitor
             {
                 home.SetBleService(_bleService);
             }
-            else if (CurrentPage is PRYmonitorPage dash)
-            {
-                dash.SetBleService(_bleService);
-            }
             else if (CurrentPage is ControlDataPage notify)
             {
                 notify.SetBleService(_bleService);
@@ -42,14 +38,6 @@ namespace DroneMonitor
             if (CurrentPage is HomePage home)
             {
                 await home.DisconnectBle();
-            }
-            else if (CurrentPage is PRYmonitorPage dash)
-            {
-                //dash.DisconnectBle();
-            }
-            else if (CurrentPage is ControlDataPage notify)
-            {
-                //notify.DisconnectBle();
             }
         }
 

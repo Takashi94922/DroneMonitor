@@ -93,20 +93,12 @@ namespace DroneMonitor.Views
                 _gamepadHandler.Start(); // ゲームパッドのポーリング開始
             }
         }
+
         async public Task DisconnectBle()
         {
             _bleService.NotificationReceived -= OnNotificationReceived;
             _sendControlUTimer?.Stop();
              _gamepadHandler?.Dispose(); // ← 新しい Dispose メソッドでゲームパッド処理を停止
-
-            try
-            {
-                // 必要な通知キーを指定して停止
-                //await _bleService.StopNotificationAsync("Command");
-            }catch (Exception ex)
-            {
-                Debug.WriteLine($"通知停止エラー: {ex.Message}");
-            }
         }
 
         // BLE通知受信時の処理

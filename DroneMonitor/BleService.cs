@@ -3,12 +3,6 @@ using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.EventArgs;
 using Plugin.BLE.Abstractions.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Maui.ApplicationModel;
 
 public class BleService
 {

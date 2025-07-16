@@ -40,12 +40,8 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</TargetPlatformMinVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 
-		<!-- Self-Contained 配布に -->
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<SelfContained>true</SelfContained>
 
-		<!-- オプション：ReadyToRun 事前 JIT コンパイル -->
-		<PublishReadyToRun>true</PublishReadyToRun>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -83,18 +79,9 @@
 		<Compile Update="Views\HomePage.xaml.cs">
 			<DependentUpon>HomePage.xaml</DependentUpon>
 		</Compile>
-		<Compile Update="Views\PRYmonitorPage.xaml.cs">
-			<DependentUpon>PRYmonitorPage.xaml</DependentUpon>
-		</Compile>
 		<Compile Update="Views\ControlDataPage.xaml.cs">
 			<DependentUpon>ControlDataPage.xaml</DependentUpon>
 		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-		<MauiAsset Update="Resources\Raw\modelv46.stl">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</MauiAsset>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -102,9 +89,6 @@
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
 		<MauiXaml Update="Views\HomePage.xaml">
-			<Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="Views\PRYmonitorPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
 		<MauiXaml Update="Views\ControlDataPage.xaml">

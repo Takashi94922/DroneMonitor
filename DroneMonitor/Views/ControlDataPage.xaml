@@ -3,7 +3,7 @@
              x:Class="DroneMonitor.Views.ControlDataPage"
              Title="ControlData">
 
-    <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, *"
+    <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, *"
           ColumnDefinitions="Auto,*"
           Padding="12">
 
@@ -59,16 +59,25 @@
                Margin="0,8,0,0"
                Padding="16,0,0,0" />
 
+        <!-- PRY -->
+        <Label x:Name="pryLabel"
+               Text="PRY:"
+               Grid.Row="3"
+               Grid.Column="0"
+               FontSize="18"
+               HorizontalOptions="Center"
+               TextColor="Black" />
+
         <!-- コントロール状態 -->
         <Label x:Name="ctrltextView"
-               Grid.Row="3"
+               Grid.Row="4"
                Grid.Column="0"
                Text="Control Text"
                HorizontalOptions="Start"
                FontSize="18"
                Margin="0,8,0,0" />
         <Label x:Name="ctrlValueLabel"
-               Grid.Row="3"
+               Grid.Row="4"
                Grid.Column="1"
                Text=""
                WidthRequest="100"

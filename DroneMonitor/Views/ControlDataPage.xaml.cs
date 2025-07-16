@@ -12,20 +12,23 @@ namespace DroneMonitor.Views;
 public partial class ControlDataPage : ContentPage
 {
     private BleService? _bleService;
+    private float pitch, roll, yaw;
 
     public ControlDataPage()
     {
         InitializeComponent();
     }
-    public void StartNotificationAsync()
+    public async void StartNotificationAsync()
     {
         // 通知開始の成否をログ出力
-        _bleService.StartNotificationAsync("Xhat_Telem").ContinueWith(t =>
+        await _bleService.StartNotificationAsync("Xhat_Telem").ContinueWith(t =>
             Debug.WriteLine($"Xhat_Telem通知開始: {t.Result}"));
-        _bleService.StartNotificationAsync("contU_TelemWrite").ContinueWith(t =>
+        await _bleService.StartNotificationAsync("contU_TelemWrite").ContinueWith(t =>
             Debug.WriteLine($"contU_TelemWrite通知開始: {t.Result}"));
-        _bleService.StartNotificationAsync("Command").ContinueWith(t =>
+        await _bleService.StartNotificationAsync("Command").ContinueWith(t =>
             Debug.WriteLine($"Command通知開始: {t.Result}"));
+        await _bleService.StartNotificationAsync("PRY_Telem").ContinueWith(t =>
+            Debug.WriteLine($"PRY_Telem通知停止: {t.Result}"));
     }
     public void SetBleService(BleService bleService)
     {
@@ -63,16 +66,6 @@ public partial class ControlDataPage : ContentPage
         {
             key = _bleService.Characteristics.FirstOrDefault(x => x.Value == characteristic).Key ?? "";
         }
-        else
-        {
-            // senderがBleService自身の場合（Invoke(this, data)のような実装）
-            // dataが一致するCharacteristicを探す
-            foreach (var pair in _bleService.Characteristics)
-            {
-                // ここではValueUpdatedイベントのsenderがCharacteristicであることが前提
-                // それ以外の場合はキーを特定できないので空文字
-            }
-        }
 
         //Debug.WriteLine($"受信: key={key}, data={BitConverter.ToString(data)}");
         MainThread.BeginInvokeOnMainThread(() =>
@@ -94,6 +87,20 @@ public partial class ControlDataPage : ContentPage
                     floats[i] = BitConverter.ToSingle(data, i * 4);
 
                 ctrlValueLabel.Text = string.Join(", ", floats.Select(f => f.ToString("F2")));
+            }
+            else if (key == "PRY_Telem")
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    float value = BitConverter.ToSingle(data, i * 4);
+                    switch (i)
+                    {
+                        case 0: pitch = value * 180.0f / (float)Math.PI; break;
+                        case 1: roll = value * 180.0f / (float)Math.PI; break;
+                        case 2: yaw = value * 180.0f / (float)Math.PI; break;
+                    }
+                }
+                pryLabel.Text = $"PRY: {pitch:F2}, {roll:F2}, {yaw:F2}";
             }
         });
     }
@@ -198,6 +205,7 @@ public partial class ControlDataPage : ContentPage
             // 必要な通知キーを指定して停止
             await _bleService.StopNotificationAsync("Xhat_Telem");
             await _bleService.StopNotificationAsync("contU_TelemWrite");
+            await _bleService.StopNotificationAsync("PRY_Telem");
             // 他にも通知を止めたいCharacteristicがあればここで追加
             _bleService.NotificationReceived -= OnNotificationReceived;
         }

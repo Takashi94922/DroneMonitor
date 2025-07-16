@@ -21,7 +21,6 @@
 
     <TabBar>
         <ShellContent Title="Home" ContentTemplate="{DataTemplate views:HomePage}" />
-        <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate views:PRYmonitorPage}" />
         <ShellContent Title="Notification" ContentTemplate="{DataTemplate views:ControlDataPage}" />
     </TabBar>
 </Shell>
