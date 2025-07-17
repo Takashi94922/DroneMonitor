@@ -4,7 +4,7 @@
              Title="ControlData">
 
     <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, Auto, *"
-          ColumnDefinitions="Auto,*"
+          ColumnDefinitions="Auto, Auto, *"
           Padding="12">
 
         <!-- 位置 -->
@@ -104,22 +104,40 @@
         <HorizontalStackLayout Padding="20"
                                Spacing="12"
                                Grid.Row="6"
-                               Grid.Column="0"
-                               Grid.ColumnSpan="2">
+                               Grid.Column="0">
 
             <!-- テキスト入力欄 -->
-            <Editor x:Name="messageEntry"
+            <Editor x:Name="KCEntry"
                    Placeholder="KCを入力してください"
                    AutoSize="TextChanges"
                    TextChanged="KCEntry_TextChanged"
                    MaxLength="400" />
-
+            
             <!-- 送信ボタン -->
             <Button x:Name="KCUpdateButton"
                 IsEnabled="False"
                 Text="送信"
                 Clicked="OnSendClicked" />
+        </HorizontalStackLayout>
 
+
+        <HorizontalStackLayout Grid.Row="6"
+                               Grid.Column="2">
+            <Picker x:Name="PIDPicker"
+                    Title="送信先"
+                    ItemsSource="{Binding OptionList}" />
+            <!-- テキスト入力欄 -->
+            <Editor x:Name="PIDgainEntry"
+                    Placeholder="PID Pitch"
+                    AutoSize="TextChanges"
+                    TextChanged="KCEntry_TextChanged"
+                    MaxLength="400" />
+
+            <!-- 送信ボタン -->
+            <Button x:Name="PIDUpdateButton"
+                    IsEnabled="False"
+                    Text="送信"
+                    Clicked="OnSendClicked" />
         </HorizontalStackLayout>
     </Grid>
 </ContentPage>

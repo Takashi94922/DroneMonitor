@@ -13,10 +13,12 @@ public partial class ControlDataPage : ContentPage
 {
     private BleService? _bleService;
     private float pitch, roll, yaw;
+    public List<string> OptionList { get; } = new() { "Pitch P", "Pitch I", "Pitch D", "Roll P", "Roll I", "Roll D", "Yaw P", "Yaw I", "Yaw D"};
 
     public ControlDataPage()
     {
         InitializeComponent();
+        BindingContext = this;
     }
     public async void StartNotificationAsync()
     {
@@ -25,8 +27,9 @@ public partial class ControlDataPage : ContentPage
             Debug.WriteLine($"Xhat_Telem通知開始: {t.Result}"));
         await _bleService.StartNotificationAsync("contU_TelemWrite").ContinueWith(t =>
             Debug.WriteLine($"contU_TelemWrite通知開始: {t.Result}"));
+        /*
         await _bleService.StartNotificationAsync("Command").ContinueWith(t =>
-            Debug.WriteLine($"Command通知開始: {t.Result}"));
+            Debug.WriteLine($"Command通知開始: {t.Result}"));*/
         await _bleService.StartNotificationAsync("PRY_Telem").ContinueWith(t =>
             Debug.WriteLine($"PRY_Telem通知停止: {t.Result}"));
     }
@@ -144,54 +147,81 @@ public partial class ControlDataPage : ContentPage
         var count = input
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Length;
-        if(count == 5 * 6)
+        if(sender == KCEntry)
         {
-            //KCUpdateButton.BackgroundColor = Colors.Blue;
-            KCUpdateButton.Text = $"送信";
-            KCUpdateButton.IsEnabled = true;
+            PIDUpdateButton.IsEnabled = (count == 5 * 6);
+            PIDUpdateButton.Text = (count == 5 * 6) ? $"送信" : $"入力済み：{count}個";
         }
-        else
+        else if(sender == PIDgainEntry)
         {
-            KCUpdateButton.IsEnabled = false;
-            KCUpdateButton.Text = $"入力済み：{count}個";
-        }
-        
+            PIDUpdateButton.IsEnabled = (count == 1);
+            PIDUpdateButton.Text = (count == 1)? $"送信" : $"入力済み：{count}個";
+        }        
     }
+    
     public void OnSendClicked(object sender, EventArgs e)
     {
-        string input = messageEntry.Text;
-        List<float> KCvalueArray = new();
-        if (_bleService != null && _bleService.IsConnected)
+        int KCcount = 0;
+        string input = "";
+        string characteristicKey = "";
+        if (sender == KCUpdateButton)
         {
-            if (!string.IsNullOrWhiteSpace(input))
+            input = KCEntry.Text;
+            characteristicKey = "ContGain_Upd";
+            KCcount = 30;
+        }
+        else if (sender == PIDUpdateButton)
+        {
+            input = PIDgainEntry.Text;
+            characteristicKey = "Command";
+            KCcount = 1;
+        }
+        else return;
+
+        List<float> valueArray = new();
+        if (_bleService != null && _bleService.IsConnected && !string.IsNullOrWhiteSpace(input))
+        {
+            // ここで送信処理や表示ロジックを追加！
+            input.SplitByComma().ToList().ForEach(x =>
             {
-                // ここで送信処理や表示ロジックを追加！
-                Debug.WriteLine($"送信内容: ");
-                input.SplitByComma().ToList().ForEach(x =>
+                if (float.TryParse(x, out float value))
                 {
-                    if (float.TryParse(x, out float value))
-                    {
-                        Debug.Write($"{value:F2},");
-                        KCvalueArray.Add(value);
-                    }
-                    else
-                    {
-                        Debug.WriteLine($"無効な入力: {x}");
-                    }
-                });
-                Debug.WriteLine($"end");
-                if (KCvalueArray.Count != 30)
+                    valueArray.Add(value);
+                }
+                else
                 {
-                    DisplayAlert("入力エラー", "30つの値をカンマ区切りで入力してください。", "OK");
-                    Debug.WriteLine("入力エラー: 30つの値をカンマ区切りで入力してください。");
+                    Debug.WriteLine($"無効な入力: {x}");
                     return;
                 }
-                // 送信する値をfloatに変換して処理
-                if (_bleService.Characteristics.TryGetValue("ContGain_Upd", out var characteristic))
+            });
+            if (valueArray.Count != KCcount)
+            {
+                DisplayAlert("入力エラー", $"{KCcount}つの値をカンマ区切りで入力してください。", "OK");
+                Debug.WriteLine($"入力エラー: {KCcount}30つの値をカンマ区切りで入力してください。");
+                return;
+            }
+            // 送信する値をfloatに変換して処理
+            if (_bleService.Characteristics.TryGetValue(characteristicKey, out var characteristic))
+            {
+                if(characteristicKey == "ContGain_Upd")
                 {
                     // 送信データをバイト配列に変換
-                    characteristic.WriteAsync(KCvalueArray.SelectMany(BitConverter.GetBytes).ToArray()).ContinueWith(t =>
-                        Debug.WriteLine($"ContGain_Upd送信結果: {t.Result}"));
+                    var valueBytes = valueArray.SelectMany(BitConverter.GetBytes).ToList();
+                    characteristic.WriteAsync(valueBytes.ToArray()).ContinueWith(t =>
+                        Debug.WriteLine($"送信結果: {t.Result}"));
+                }
+                else if(characteristicKey == "Command")
+                {
+                    // PIDゲイン更新のためのコマンド送信
+                    var index = PIDPicker.SelectedIndex;
+
+                    var valueBytes = new byte[3];
+                    valueBytes[0] = (byte)(11 + index / 3); // コマンドID
+                    valueBytes[1] = (byte)(index % 3); // 選択されたPIDゲインのインデックス
+                    valueBytes[2] = (byte)valueArray[0]; // 値の数
+
+                    characteristic.WriteAsync(valueBytes).ContinueWith(t =>
+                        Debug.WriteLine($"PIDゲイン送信結果: {t.Result}"));
                 }
             }
         }
