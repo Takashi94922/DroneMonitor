@@ -1,11 +1,8 @@
+using EmbedIO.Utilities;
+using Plugin.BLE.Abstractions.Contracts;
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using EmbedIO.Utilities;
-using Microsoft.Maui.Controls;
-using Plugin.BLE.Abstractions.Contracts;
 
 namespace DroneMonitor.Views;
 
@@ -14,11 +11,13 @@ public partial class ControlDataPage : ContentPage
     private BleService? _bleService;
     private float pitch, roll, yaw;
     public List<string> OptionList { get; } = new() { "Pitch P", "Pitch I", "Pitch D", "Roll P", "Roll I", "Roll D", "Yaw P", "Yaw I", "Yaw D"};
+    public List<float> PIDvalues { get; set; } = new() { 6.0f, 0, 3.0f, 10.0f, 0, 8.0f, 0, 0, 0 };
 
     public ControlDataPage()
     {
         InitializeComponent();
         BindingContext = this;
+        setGainLabel(-1, -1);
     }
     public async void StartNotificationAsync()
     {
@@ -89,7 +88,7 @@ public partial class ControlDataPage : ContentPage
                 for (int i = 0; i < 5; i++)
                     floats[i] = BitConverter.ToSingle(data, i * 4);
 
-                ctrlValueLabel.Text = string.Join(", ", floats.Select(f => f.ToString("F2")));
+                ctrlValueLabel.Text = string.Join("\n", floats.Select(f => f.ToString("F2")));
             }
             else if (key == "PRY_Telem")
             {
@@ -218,15 +217,37 @@ public partial class ControlDataPage : ContentPage
                     var valueBytes = new byte[6];
                     valueBytes[0] = (byte)(11 + index / 3); // コマンドID
                     valueBytes[1] = (byte)(index % 3); // 選択されたPIDゲインのインデックス
-                    Array.Copy(BitConverter.GetBytes(valueArray[0]), 0, valueBytes, 2, 4); // 値の数
+                    Array.Copy(BitConverter.GetBytes(valueArray[0]), 0, valueBytes, 2, 4); // PID値はfloat
                     Debug.WriteLine($"PIDゲイン送信: コマンドID={valueBytes[0]}, インデックス={valueBytes[1]}, 値={valueBytes[2]}");
                     characteristic.WriteAsync(valueBytes).ContinueWith(t =>
                         Debug.WriteLine($"PIDゲイン送信結果: {t.Result}"));
+
+                    setGainLabel(index, valueArray[0]);
                 }
             }
         }
-
     }
+
+    private void setGainLabel(int index, float newGain)
+    {
+        if (index != -1)
+        {
+            PIDvalues[index] = newGain; // PID値を更新
+        }
+
+        //3要素ごとに改行する
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < PIDvalues.Count; i++)
+        {
+            sb.Append(PIDvalues[i].ToString("F2")); // 小数点以下2桁
+            if ((i + 1) % 3 == 0)
+                sb.AppendLine(); // グループの終わりで改行
+            else
+                sb.Append(", "); // グループ内はカンマ区切り
+        }
+        PIDLabel.Text = $"ゲイン: {sb.ToString()}";
+    }
+
     protected override async void OnDisappearing()
     {
         base.OnDisappearing();
