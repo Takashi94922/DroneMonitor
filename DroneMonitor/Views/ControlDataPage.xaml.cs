@@ -215,11 +215,11 @@ public partial class ControlDataPage : ContentPage
                     // PIDゲイン更新のためのコマンド送信
                     var index = PIDPicker.SelectedIndex;
 
-                    var valueBytes = new byte[3];
+                    var valueBytes = new byte[6];
                     valueBytes[0] = (byte)(11 + index / 3); // コマンドID
                     valueBytes[1] = (byte)(index % 3); // 選択されたPIDゲインのインデックス
-                    valueBytes[2] = (byte)valueArray[0]; // 値の数
-
+                    Array.Copy(BitConverter.GetBytes(valueArray[0]), 0, valueBytes, 2, 4); // 値の数
+                    Debug.WriteLine($"PIDゲイン送信: コマンドID={valueBytes[0]}, インデックス={valueBytes[1]}, 値={valueBytes[2]}");
                     characteristic.WriteAsync(valueBytes).ContinueWith(t =>
                         Debug.WriteLine($"PIDゲイン送信結果: {t.Result}"));
                 }

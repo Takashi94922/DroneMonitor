@@ -152,9 +152,22 @@ namespace DroneMonitor.Views
                 buf[1 + i] = _lastSentValues.TryGetValue(s, out var v) ? v : (byte)50;
             }
 
-            if (_bleService.Characteristics.TryGetValue("Command", out var c))
+            _bleService.Characteristics.TryGetValue("Command", out var c);
+            if (_gamepadHandler.IsControlByPad && c != null)
             {
                 await c.WriteAsync(buf);
+            }
+            else if(_gamepadHandler.IsThrottleByPad && c != null)
+            {
+                // コマンドID + 各スライダーの byte 値
+                // ゲームパッドでスロットル制御の場合へ送信
+                var val = _lastSentValues.TryGetValue(throttleSeekBar, out var v) ? v : (byte)0;
+                await c.WriteAsync(new byte[] {0x00, val});
+            }
+            else if (_bleService.Characteristics.TryGetValue("Command", out var commandChar))
+            {
+                // 通常のコマンド送信
+                await commandChar.WriteAsync(buf);
             }
         }
 

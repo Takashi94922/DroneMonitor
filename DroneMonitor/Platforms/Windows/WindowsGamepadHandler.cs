@@ -72,14 +72,39 @@ namespace DroneMonitor.Platforms.Windows
             if (!_lastButtons.HasFlag(GamepadButtons.A) && reading.Buttons.HasFlag(GamepadButtons.A))
             {
                 IsControlByPad = !IsControlByPad;
-                msgPad.Text = $"GamePad : {IsControlByPad}";
                 Debug.WriteLine($"Aボタンで切り替え: {IsControlByPad}");
             }
-            else if (!_lastButtons.HasFlag(GamepadButtons.B) && reading.Buttons.HasFlag(GamepadButtons.B))
+            if (!_lastButtons.HasFlag(GamepadButtons.B) && reading.Buttons.HasFlag(GamepadButtons.B))
             {
                 IsThrottleByPad = !IsThrottleByPad;
-                msgPad.Text = $"ThrottlePad : {IsThrottleByPad}";
                 Debug.WriteLine($"Bボタンで切り替え: {IsThrottleByPad}");
+            }
+            msgPad.Text = $"GamePad : {IsControlByPad}, ThrottlePad : {IsThrottleByPad}";
+
+            // スロットルの制御
+            if (IsThrottleByPad)
+            {
+                if (!_lastButtons.HasFlag(GamepadButtons.LeftShoulder) && reading.Buttons.HasFlag(GamepadButtons.LeftShoulder))
+                {
+                    // LTでスロットルを10%減らす
+                    U5[0] = (float)Math.Max(U5[0] - 10, 0);
+                    Debug.WriteLine("LTボタンが押されました");
+                }
+                else if (!_lastButtons.HasFlag(GamepadButtons.RightShoulder) && reading.Buttons.HasFlag(GamepadButtons.RightShoulder))
+                {
+                    // RTでスロットルを10%増やす
+                    U5[0] = (float)Math.Min(U5[0] + 10, 100);
+                    Debug.WriteLine("RTボタンが押されました");
+                }
+                // スロットルの右スティックY軸
+                ControlThrottle((float)reading.RightThumbstickY);
+                U5[0] = (float)Math.Clamp(U5[0], 0, 100);
+                sliders[0].Value = U5[0]; // スライダーの値を更新
+            }
+            else
+            {
+                //制御無効な場合はスロットルをスライダーの値にする
+                U5[0] = lastSentValues[sliders[0]];
             }
 
             // Aボタンが押されている場合は制御
@@ -91,37 +116,14 @@ namespace DroneMonitor.Platforms.Windows
                 ControlRollPitch((float)reading.LeftThumbstickX, (float)reading.LeftThumbstickY);
                 ControlYaw((float)reading.LeftTrigger, (float)reading.RightTrigger);
 
-                // スロットルの制御
-                if (IsThrottleByPad)
-                {
-                    if (!_lastButtons.HasFlag(GamepadButtons.LeftShoulder) && reading.Buttons.HasFlag(GamepadButtons.LeftShoulder))
-                    {
-                        // LTでスロットルを10%減らす
-                        U5[0] = (float)Math.Max(U5[0] - 10, 0);
-                        Debug.WriteLine("LTボタンが押されました");
-                    }
-                    else if (!_lastButtons.HasFlag(GamepadButtons.RightShoulder) && reading.Buttons.HasFlag(GamepadButtons.RightShoulder))
-                    {
-                        // RTでスロットルを10%増やす
-                        U5[0] = (float)Math.Min(U5[0] + 10, 100);
-                        Debug.WriteLine("RTボタンが押されました");
-                    }
-                    // スロットルの右スティックY軸
-                    ControlThrottle((float)reading.RightThumbstickY);
-                }
-                else
-                {
-                    //制御無効な場合はスロットルをスライダーの値にする
-                    U5[0] = lastSentValues[sliders[0]];
-                }
-
                 //Servoのオフセットを追加
-                for (int i = 0; i < sliders.Length; i++)
+                for (int i = 1; i < sliders.Length; i++)
                 {
-                    sliders[i].Value = i == 0 ? U5[i] : U5[i] + 50;
+                    sliders[i].Value = U5[i] + 50;
                 }
 
             }
+
             _lastButtons = reading.Buttons;
         }
 
