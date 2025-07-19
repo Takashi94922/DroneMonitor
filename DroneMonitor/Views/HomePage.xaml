@@ -4,22 +4,26 @@
              x:Class="DroneMonitor.Views.HomePage"
              xmlns:android="clr-namespace:DroneMonitor.Platforms.Android"
              Title="BT DRONE">
-    <Grid ColumnDefinitions="*,*"
+    <Grid ColumnDefinitions="*"
               RowDefinitions="*, *,*,*,*,*, *, 200" Margin="20,0,20,0">
         <!-- メッセージ -->
-        <Label x:Name="msgWindow" Text="…" HorizontalOptions="Center" Grid.Row="0" Grid.Column="0" Margin="20,0,20,0" />
-        <Label x:Name="msgPad"    Text="…" HorizontalOptions="Center" Grid.Row="0" Grid.Column="1" Margin="20,0,20,0" />
-
-            <!-- 横型 Slider を縦積み -->
+        <VerticalStackLayout Grid.Row="0" Grid.ColumnSpan="0" Margin="0,0,0,20">
+            <Label x:Name="msgWindow" Text="…" HorizontalOptions="Center"  />
+            <Label x:Name="msgPad"    Text="…" HorizontalOptions="Center" />
+        </VerticalStackLayout>
+        
+        <!-- 横型 Slider を縦積み -->
         <Slider x:Name="S1SeekBar"    Maximum="100" Value="50" Grid.Row="1" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S2SeekBar"    Maximum="100" Value="50" Grid.Row="2" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="throttleSeekBar" Maximum="100" Value="0" Grid.Row="3" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S3SeekBar"    Maximum="100" Value="50" Grid.Row="4" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S4SeekBar"    Maximum="100" Value="50" Grid.Row="5" Grid.Column="0" Margin="20,10,20,10" />
 
-        <!-- 操作ボタン -->
-        <Button x:Name="throttleMinusBtn" Text="–" Grid.Row="6" Grid.Column="0" Margin="20,0,20,0"/>
-        <Button x:Name="throttlePlusBtn"  Text="+" Grid.Row="6" Grid.Column="1" Margin="20,0,20,0"/>
+        <HorizontalStackLayout Grid.Row="6" Grid.Column="0" HorizontalOptions="Center">
+            <!-- 操作ボタン -->
+            <Button x:Name="throttleMinusBtn" Text="–" Margin="5"/>
+            <Button x:Name="throttlePlusBtn"  Text="+" Margin="5"/>
+        </HorizontalStackLayout>
 
         <!-- AndroidのJoystickView -->
         <OnPlatform x:TypeArguments="View">

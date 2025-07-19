@@ -9,8 +9,8 @@ namespace DroneMonitor.Platforms.Windows
         private GamepadButtons _lastButtons = GamepadButtons.None;
         private IDispatcherTimer? _gamepadTimer;
         
-        public WindowsGamepadHandler(Dictionary<Slider, byte> sentValues, Slider[] sliderArray, Label messageLabel)
-            : base(sentValues, sliderArray, messageLabel)
+        public WindowsGamepadHandler(Slider[] sliderArray, Label messageLabel)
+            : base(sliderArray, messageLabel)
         {
         }
         public override void Init()
@@ -100,11 +100,6 @@ namespace DroneMonitor.Platforms.Windows
                 ControlThrottle((float)reading.RightThumbstickY);
                 U5[0] = (float)Math.Clamp(U5[0], 0, 100);
                 sliders[0].Value = U5[0]; // スライダーの値を更新
-            }
-            else
-            {
-                //制御無効な場合はスロットルをスライダーの値にする
-                U5[0] = lastSentValues[sliders[0]];
             }
 
             // Aボタンが押されている場合は制御

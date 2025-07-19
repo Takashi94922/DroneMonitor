@@ -30,7 +30,7 @@ public partial class ControlDataPage : ContentPage
         await _bleService.StartNotificationAsync("Command").ContinueWith(t =>
             Debug.WriteLine($"Command通知開始: {t.Result}"));*/
         await _bleService.StartNotificationAsync("PRY_Telem").ContinueWith(t =>
-            Debug.WriteLine($"PRY_Telem通知停止: {t.Result}"));
+            Debug.WriteLine($"PRY_Telem通知開始: {t.Result}"));
     }
     public void SetBleService(BleService bleService)
     {
@@ -253,11 +253,6 @@ public partial class ControlDataPage : ContentPage
         base.OnDisappearing();
         if (_bleService != null)
         {
-            // 必要な通知キーを指定して停止
-            await _bleService.StopNotificationAsync("Xhat_Telem");
-            await _bleService.StopNotificationAsync("contU_TelemWrite");
-            await _bleService.StopNotificationAsync("PRY_Telem");
-            // 他にも通知を止めたいCharacteristicがあればここで追加
             _bleService.NotificationReceived -= OnNotificationReceived;
         }
     }

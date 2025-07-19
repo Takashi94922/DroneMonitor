@@ -3,7 +3,7 @@ using DroneMonitor.Platforms.Android;
 #elif WINDOWS
 using DroneMonitor.Platforms.Windows;
 #endif
-using System.Diagnostics;
+using Plugin.BLE.Abstractions.Contracts;
 
 namespace DroneMonitor.Views
 {
@@ -11,6 +11,7 @@ namespace DroneMonitor.Views
     {
         private BleService? _bleService;
         private readonly Dictionary<Slider, byte> _lastSentValues = new();
+        private readonly Dictionary<Slider, byte> _newInputValues = new();
         private readonly Slider[] _sliders;
         private IDispatcherTimer? _sendControlUTimer;
 
@@ -22,7 +23,7 @@ namespace DroneMonitor.Views
         private AndroidGamepadHandler? _gamepadHandler;
 #endif
         public HomePage()
-        {        
+        {
             InitializeComponent();
 
             _sliders = new[]
@@ -38,6 +39,7 @@ namespace DroneMonitor.Views
             {
                 slider.ValueChanged += OnSliderChanged;
                 _lastSentValues[slider] = (byte)slider.Value;
+                _newInputValues[slider] = (byte)slider.Value;
             }
 
             throttlePlusBtn.Clicked += OnPlusClicked;
@@ -51,10 +53,10 @@ namespace DroneMonitor.Views
         {
             base.OnAppearing();
 #if WINDOWS
-            _gamepadHandler = new WindowsGamepadHandler(_lastSentValues, _sliders, msgPad);
+            _gamepadHandler = new WindowsGamepadHandler(_sliders, msgPad);
 #endif
 #if ANDROID
-            _gamepadHandler = new AndroidGamepadHandler(_lastSentValues, _sliders, msgPad);
+            _gamepadHandler = new AndroidGamepadHandler(_sliders, msgPad);
             // Android では JoystickView を使う場合、AndroidGamepadHandler を使う
             joystickView.SetGamepadHandler(_gamepadHandler);
 #endif
@@ -64,16 +66,9 @@ namespace DroneMonitor.Views
         {
             _bleService = bleService;
             // イベントの重複登録を防ぐため一度解除
-            _bleService.NotificationReceived -= OnNotificationReceived;
             _bleService.NotificationReceived += OnNotificationReceived;
-            if (_bleService != null && _bleService.IsConnected)
-            {
-                _bleService.StartNotificationAsync("Command");
-            }
 
-            _sendControlUTimer.Start();
-
-            // 各スライダーのイベント登録と、初期値 50 をセット
+            // 各スライダーのイベント登録と、初期値0か 50 をセット
             foreach (var s in _sliders)
             {
                 if (s == throttleSeekBar)
@@ -84,36 +79,41 @@ namespace DroneMonitor.Views
                 else
                 {
                     s.ValueChanged += OnSliderChanged;
-                    _lastSentValues[s] = 50;   // ← ここで初期化
-                    s.Value = 50;              // UIも50スタートにしたい場合
+                    _lastSentValues[s] = 50;
+                    s.Value = 50;
                 }
             }
             if (_gamepadHandler != null)
             {
                 _gamepadHandler.Start(); // ゲームパッドのポーリング開始
             }
+
+            _sendControlUTimer.Start();
         }
 
         async public Task DisconnectBle()
         {
             _bleService.NotificationReceived -= OnNotificationReceived;
             _sendControlUTimer?.Stop();
-             _gamepadHandler?.Dispose(); // ← 新しい Dispose メソッドでゲームパッド処理を停止
+            _gamepadHandler?.Dispose(); // ← 新しい Dispose メソッドでゲームパッド処理を停止
         }
 
         // BLE通知受信時の処理
         private void OnNotificationReceived(object? sender, byte[] data)
         {
+            // senderがICharacteristicでない場合、全Characteristicからdata一致で特定
+            string key = "";
+            if (sender is ICharacteristic characteristic)
+            {
+                key = _bleService.Characteristics.FirstOrDefault(x => x.Value == characteristic).Key ?? "";
+            }
+
+            //Debug.WriteLine($"受信: key={key}, data={BitConverter.ToString(data)}");
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                try
+                if (key == "Command" && data.Length >= 24)
                 {
-                    string str = System.Text.Encoding.UTF8.GetString(data);
-                    msgWindow.Text = str;
-                }
-                catch
-                {
-                    msgWindow.Text = BitConverter.ToString(data);
+                    msgWindow.Text = $"{data}";
                 }
             });
         }
@@ -122,15 +122,13 @@ namespace DroneMonitor.Views
         private async void OnSliderChanged(object? sender, ValueChangedEventArgs e)
         {
             var slider = (Slider)sender!;
-            byte newValue = (byte)Math.Round(e.NewValue);
+            var newValue = (byte)Math.Round(e.NewValue);
 
-            byte lastValue = _lastSentValues[slider];
-            byte delta = (byte)Math.Abs(newValue - lastValue);
-
+            byte delta = (byte)Math.Abs(newValue - _lastSentValues[slider]);
             // しきい値を超えたら送信
             if (delta >= SEND_THRESHOLD)
             {
-                _lastSentValues[slider] = newValue;
+                _newInputValues[slider] = newValue;
             }
 
             // UI 表示は即時更新
@@ -140,34 +138,60 @@ namespace DroneMonitor.Views
         private async void SendSliderValueAsync(object sender, object e)
         {
             if (_bleService == null || !_bleService.IsConnected) return;
-
-            // コマンドID + 各スライダーの byte 値
-            var buf = new byte[1 + _sliders.Length];
-            buf[0] = 0x0A;  // コマンドID
-
-            for (int i = 0; i < _sliders.Length; i++)
-            {
-                var s = _sliders[i];
-                // ディクショナリに値がなければ 50
-                buf[1 + i] = _lastSentValues.TryGetValue(s, out var v) ? v : (byte)50;
-            }
-
             _bleService.Characteristics.TryGetValue("Command", out var c);
-            if (_gamepadHandler.IsControlByPad && c != null)
+            if (c == null) return;
+
+            var defaultBuf = new byte[]{0x00, 50, 50, 50, 50};
+            var buf = (byte[])defaultBuf.Clone();
+
+            var changedIndex = -1;
+
+            //操舵があるか調べる
+            for (int i = 1; i < _sliders.Length; i++)
             {
+                var slider = _sliders[i];
+                byte newVal = _newInputValues[slider];
+                byte oldVal = _lastSentValues[slider];
+
+                // 新しい値のとき、送信準備
+
+                if (newVal != oldVal)
+                {
+                    buf[i] = newVal;
+                    changedIndex = i;
+                }
+            }
+
+            // PADコントロールの場合 は無操作でも0に戻す信号が必要
+            if (_gamepadHandler.IsControlByPad && changedIndex != -1)
+            {
+                buf[0] = 0x0A; // コマンドID
+                c.WriteAsync(buf);
+                for (int i= 1; i < _sliders.Length; i++)
+                {
+                    var slider = _sliders[i];
+                    // 新しい値を送信
+                    _lastSentValues[slider] = _newInputValues[slider];
+                }
+            }
+            //PAD操作ではないがクリックによってスライダー値が変更された場合
+            else if (changedIndex != -1)
+            {
+                buf[0] = (byte)changedIndex; // コマンドID
+                buf[1] = buf[changedIndex]; // スロットル値
+                c.WriteAsync(buf);
+                _lastSentValues[_sliders[changedIndex]] = _newInputValues[_sliders[changedIndex]];
+            }
+
+            //スロットル操作の時
+            if(_lastSentValues[throttleSeekBar] != _newInputValues[throttleSeekBar] )
+            {
+                buf[0] = 0x00; // コマンドID
+                //将来の実装のためにfloatに変換しておく
+                var newValue = BitConverter.GetBytes((float)_newInputValues[throttleSeekBar]);
+                System.Array.Copy(newValue, 0, buf, 1, newValue.Length);
                 await c.WriteAsync(buf);
-            }
-            else if(_gamepadHandler.IsThrottleByPad && c != null)
-            {
-                // コマンドID + 各スライダーの byte 値
-                // ゲームパッドでスロットル制御の場合へ送信
-                var val = _lastSentValues.TryGetValue(throttleSeekBar, out var v) ? v : (byte)0;
-                await c.WriteAsync(new byte[] {0x00, val});
-            }
-            else if (_bleService.Characteristics.TryGetValue("Command", out var commandChar))
-            {
-                // 通常のコマンド送信
-                await commandChar.WriteAsync(buf);
+                _lastSentValues[throttleSeekBar] = _newInputValues[throttleSeekBar];
             }
         }
 
@@ -190,9 +214,6 @@ namespace DroneMonitor.Views
                  _gamepadHandler?.Dispose();  // ゲームパッド停止
 
                 _bleService.NotificationReceived -= OnNotificationReceived;
-                // 必要な通知キーを指定して停止
-                _bleService.StopNotificationAsync("Command");
-                // 他にも通知を止めたいCharacteristicがあればここで追加
             }
         }
     }

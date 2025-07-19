@@ -4,8 +4,8 @@ namespace DroneMonitor.Platforms.Android
 {
     public class AndroidGamepadHandler : GamepadHandler
     {
-        public AndroidGamepadHandler(Dictionary<Slider, byte> sentValues, Slider[] sliderArray, Label messageLabel)
-            : base(sentValues, sliderArray, messageLabel)
+        public AndroidGamepadHandler(Slider[] sliderArray, Label messageLabel)
+            : base(sliderArray, messageLabel)
         {
         }
         public override void Init()
@@ -28,9 +28,9 @@ namespace DroneMonitor.Platforms.Android
             //ControlYaw(x, y);
 
             //Servoのオフセットを追加
-            for (int i = 0; i < sliders.Length; i++)
+            for (int i = 1; i < sliders.Length; i++)
             {
-                sliders[i].Value = i == 0 ? U5[i] : U5[i] + 50;
+                sliders[i].Value = U5[i] + 50;
             }
         }
 

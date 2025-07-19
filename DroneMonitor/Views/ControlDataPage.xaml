@@ -3,8 +3,8 @@
              x:Class="DroneMonitor.Views.ControlDataPage"
              Title="ControlData">
 
-    <Grid RowDefinitions="*, *, *, *, *"
-          ColumnDefinitions="*, *, *"
+    <Grid RowDefinitions="*, *, *, *, *, *"
+          ColumnDefinitions="*, *"
           Padding="12">
 
         <!-- 位置 -->
@@ -14,13 +14,11 @@
             <Label x:Name="positionTextView"
                Text="Position"
                HorizontalOptions="Start"
-               FontSize="18" />
+               FontSize="12" />
             <Label x:Name="positionValueLabel"
                Text=""
-               WidthRequest="100"
                HorizontalOptions="Start"
-               FontSize="18"
-               Padding="16,0,0,0" />
+               FontSize="12" />
         </HorizontalStackLayout>
         
         <!-- 速度 -->
@@ -30,57 +28,48 @@
             <Label x:Name="velocityTextView"
                Text="Velocity"
                HorizontalOptions="Start"
-               FontSize="18"
-               Margin="0,8,0,0" />
+               FontSize="12" />
             <Label x:Name="velocityValueLabel"
                Text=""
                HorizontalOptions="Start"
-               FontSize="18"
-               WidthRequest="130"
-               Margin="0,8,0,0"
-               Padding="16,0,0,0" />
+               FontSize="12" />
         </HorizontalStackLayout>
 
-        <HorizontalStackLayout
-               Grid.Row="0"
-               Grid.Column="2" >
-            <!-- 加速度 -->
-            <Label x:Name="accelTextView"
-               Text="Acceleration"
-               HorizontalOptions="Start"
-               FontSize="18"
-               Margin="0,8,0,0" />
-            <Label x:Name="accelValueLabel"
-               Text=""
-               HorizontalOptions="Start"
-               WidthRequest="100"
-               FontSize="18"
-               Margin="0,8,0,0"
-               Padding="16,0,0,0" />
-        </HorizontalStackLayout>
-        
         <!-- PRY -->
         <Label x:Name="pryLabel"
                Text="PRY:"
                Grid.Row="1"
                Grid.Column="0"
-               FontSize="18"
+               FontSize="12"
                TextColor="Black" />
-
+        
+        <HorizontalStackLayout
+               Grid.Row="1"
+               Grid.Column="1" >
+            <!-- 加速度 -->
+            <Label x:Name="accelTextView"
+               Text="Acceleration"
+               HorizontalOptions="Start"
+               FontSize="12" />
+            <Label x:Name="accelValueLabel"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="12" />
+            
+        </HorizontalStackLayout>
         <!-- コントロール状態 -->
         <Label x:Name="ctrltextView"
                Grid.Row="2"
                Grid.Column="0"
                Text="Control Text"
                HorizontalOptions="Start"
-               FontSize="18" />
+               FontSize="12" />
         <Label x:Name="ctrlValueLabel"
                Grid.Row="2"
                Grid.Column="1"
                Text=""
-               WidthRequest="100"
                HorizontalOptions="Start"
-               FontSize="18" />
+               FontSize="12" />
 
         <!-- コントロールボタン -->
         <StackLayout Grid.Row="3"
@@ -89,19 +78,27 @@
                      HorizontalOptions="Start">
             <Button x:Name="beginControl"
                     Clicked="OnControlButtonClicked"
-                    Text="制御開始"
-                    WidthRequest="100"
-                    HeightRequest="30"/>
+                    TextColor="White"
+                    Text="制御開始"/>
         </StackLayout>
+        
+        <Label x:Name="PIDLabel"
+               Text="ゲイン:"
+               Grid.Row="3"
+               Grid.Column="1"
+               FontSize="12"
+               HorizontalOptions="Start"
+               TextColor="Black" />
 
         <HorizontalStackLayout Grid.Row="4"
-                               Grid.Column="0">
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2">
             <!-- テキスト入力欄 -->
             <Editor x:Name="KCEntry"
                    Placeholder="KCを入力してください"
                    AutoSize="TextChanges"
                    TextChanged="KCEntry_TextChanged"
-                   MaxLength="400" />
+                   MaxLength="200" />
             
             <!-- 送信ボタン -->
             <Button x:Name="KCUpdateButton"
@@ -110,15 +107,9 @@
                 Clicked="OnSendClicked" />
         </HorizontalStackLayout>
 
-        <Label x:Name="PIDLabel"
-               Text="ゲイン:"
-               Grid.Row="4"
-               Grid.Column="1"
-               FontSize="18"
-               HorizontalOptions="Start"
-               TextColor="Black" />
-        <HorizontalStackLayout Grid.Row="4"
-                               Grid.Column="2">
+        <HorizontalStackLayout Grid.Row="5"
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2">
             <Picker x:Name="PIDPicker"
                     Title="送信先"
                     ItemsSource="{Binding OptionList}" />
@@ -127,7 +118,7 @@
                     Placeholder="PID Pitch"
                     AutoSize="TextChanges"
                     TextChanged="KCEntry_TextChanged"
-                    MaxLength="400" />
+                    MaxLength="200" />
 
             <!-- 送信ボタン -->
             <Button x:Name="PIDUpdateButton"

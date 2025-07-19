@@ -83,25 +83,10 @@ public class BleService
                 return false;
 
             await Adapter.ConnectToDeviceAsync(Device);
+#if ANDROID
 
-            // --- MTU拡大リクエスト ---
-            /*
-            try
-            {
-                // Plugin.BLE の IDevice.RequestMtuAsync を利用
-                // Android/iOS のみ有効。500 バイトをリクエスト
-                if (Device != null)
-                {
-                    await Device.RequestMtuAsync(500);
-                }
-            }
-            catch
-            {
-                // MTU拡大失敗時は無視
-            }
-            */
-            // -----------------------
-
+            await Device.RequestMtuAsync(500);
+#endif
             Service = await Device.GetServiceAsync(SERVICE_UUID);
             var uuids = new[]
             {
