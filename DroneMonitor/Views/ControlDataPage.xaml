@@ -102,7 +102,7 @@
                    Placeholder="KCを入力してください"
                    AutoSize="TextChanges"
                    TextChanged="KCEntry_TextChanged"
-                   MaxLength="200" />
+                   MaxLength="400" />
             
             <!-- 送信ボタン -->
             <Button x:Name="KCUpdateButton"

@@ -139,8 +139,8 @@ public partial class ControlDataPage : ContentPage
             .Length;
         if(sender == KCEntry)
         {
-            PIDUpdateButton.IsEnabled = (count == 5 * 6);
-            PIDUpdateButton.Text = (count == 5 * 6) ? $"送信" : $"入力済み：{count}個";
+            KCUpdateButton.IsEnabled = (count == 5 * 6);
+            KCUpdateButton.Text = (count == 5 * 6) ? $"送信" : $"入力済み：{count}個";
         }
         else if(sender == PIDgainEntry)
         {
@@ -193,14 +193,15 @@ public partial class ControlDataPage : ContentPage
             // 送信する値をfloatに変換して処理
             if (_bleService.Characteristics.TryGetValue(characteristicKey, out var characteristic))
             {
-                if(characteristicKey == "ContGain_Upd")
+                if(sender == KCUpdateButton)
                 {
                     // 送信データをバイト配列に変換
                     var valueBytes = valueArray.SelectMany(BitConverter.GetBytes).ToList();
+
                     characteristic.WriteAsync(valueBytes.ToArray()).ContinueWith(t =>
                         Debug.WriteLine($"送信結果: {t.Result}"));
                 }
-                else if(characteristicKey == "Command")
+                else if(sender == PIDUpdateButton)
                 {
                     // PIDゲイン更新のためのコマンド送信
                     var index = PIDPicker.SelectedIndex;
