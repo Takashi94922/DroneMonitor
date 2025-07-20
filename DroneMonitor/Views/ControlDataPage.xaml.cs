@@ -12,6 +12,7 @@ public partial class ControlDataPage : ContentPage
     private float pitch, roll, yaw;
     public List<string> OptionList { get; } = new() { "Pitch P", "Pitch I", "Pitch D", "Roll P", "Roll I", "Roll D", "Yaw P", "Yaw I", "Yaw D"};
     public List<float> PIDvalues { get; set; } = new() { 6.0f, 0, 3.0f, 10.0f, 0, 8.0f, 0, 0, 0 };
+    public List<string> ContOptionList { get; } = new() { "None", "MIMO", "PID"};
 
     public ControlDataPage()
     {
@@ -46,8 +47,8 @@ public partial class ControlDataPage : ContentPage
     public void UpdateControlButtonState()
     {
         beginControl.IsEnabled = _bleService.IsConnected ? true : false;
-        beginControl.Text = _bleService.IsControlBySelf ? "制御停止" : "制御開始";
-        beginControl.BackgroundColor = _bleService.IsControlBySelf ? Colors.Red : Colors.Blue; 
+        beginControl.Text = _bleService.IsControlBySelf != 0 ? "制御停止" : "制御開始";
+        beginControl.BackgroundColor = _bleService.IsControlBySelf != 0? Colors.Red : Colors.Blue; 
     }
 
     private void OnNotificationReceived(object? sender, byte[] data)
@@ -112,23 +113,13 @@ public partial class ControlDataPage : ContentPage
         {
             if(sender is Button beginControl)
             {
-                // ボタンのテキストを確認して適切な処理を実行
-                if (!_bleService.IsControlBySelf)
+                Debug.WriteLine("制御開始ボタンがクリックされました");
+
+                if (_bleService.Characteristics.TryGetValue("Command", out var CharCommand))
                 {
-                    // 制御開始の処理をここに追加
-                    Debug.WriteLine("制御開始ボタンがクリックされました");
-                    if(_bleService.Characteristics.TryGetValue("Command", out var CharCommand)){ 
-                        _bleService.IsControlBySelf = true; // 制御開始フラグを設定
-                        await CharCommand.WriteAsync(new byte[] { 0x05, 0x00 }); // 制御開始コマンドを送信 0x00はダミーデータ
-                    }
-                }
-                else if (beginControl.Text == "制御停止")
-                {
-                    // 制御停止の処理をここに追加
-                    if(_bleService.Characteristics.TryGetValue("Command", out var CharCommand)){
-                        _bleService.IsControlBySelf = false; // 制御停止フラグを設定
-                        await CharCommand.WriteAsync(new byte[] { 0x06, 0x00 }); // 制御開始コマンドを送信0x00
-                    }
+                    _bleService.IsControlBySelf = (byte)ContPicker.SelectedIndex; // 制御開始フラグを設定
+                    await CharCommand.WriteAsync(new byte[] { 0x05, _bleService.IsControlBySelf }); // 制御方法を送信
+                    ContPicker.SelectedIndex = 0; //送信したら次はNoneを選択
                 }
                 UpdateControlButtonState();
             }

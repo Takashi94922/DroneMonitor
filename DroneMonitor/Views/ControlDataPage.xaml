@@ -76,6 +76,10 @@
                      Grid.Column="0"
                      Orientation="Horizontal"
                      HorizontalOptions="Start">
+            <Picker x:Name="ContPicker"
+                    Title="制御方法"
+                    SelectedIndex="0"
+                    ItemsSource="{Binding ContOptionList}" />
             <Button x:Name="beginControl"
                     Clicked="OnControlButtonClicked"
                     TextColor="White"

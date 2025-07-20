@@ -11,7 +11,7 @@ public class BleService
     public IDevice? Device { get; private set; }
     public IService? Service { get; private set; }
     public bool IsConnected => Device != null && Adapter.ConnectedDevices.Contains(Device);
-    public bool IsControlBySelf { get; set; } = false; // ©•ª‚Å§Œä‚·‚é‚©‚Ç‚¤‚©
+    public byte IsControlBySelf { get; set; } = 0; // §Œä•û–@
 
     // •¡”Characteristic‚ğ•Û‚·‚éDictionary‚ğ’Ç‰Á
     public Dictionary<string, ICharacteristic> Characteristics { get; } = new();

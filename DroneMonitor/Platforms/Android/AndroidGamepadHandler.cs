@@ -21,6 +21,7 @@ namespace DroneMonitor.Platforms.Android
 
         public void OnStickChanged(float x, float y)
         {
+            IsControlByPad = true; // ゲームパッド制御を有効にする
             U5 = new List<float> { U5[0], 0, 0, 0, 0 }; // U5をリセット
 
             // スティックの値を取得して制御

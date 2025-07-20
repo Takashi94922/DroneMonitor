@@ -4,8 +4,8 @@ namespace DroneMonitor
 {
     public abstract class GamepadHandler
     {
-        public bool IsControlByPad { get; protected set; } = false;
-        public bool IsThrottleByPad { get; protected set; } = false;
+        public bool IsControlByPad { get; set; } = false;
+        public bool IsThrottleByPad { get; set; } = false;
         public List<float> U5 { get; protected set; } = new() { 0, 0, 0, 0, 0 };
 
         protected IDispatcherTimer? _gamepadTimer;

@@ -25,7 +25,10 @@ namespace DroneMonitor.Platforms.Android
         
         // ↓ この 3 つを必ずこのまま（アクセス修飾子は public でも private でも OK）
         public void OnStartInteraction(object sender, TouchEventArgs e)
-          => UpdateStickPosition(e);
+        {
+            _androidHandler.IsControlByPad = true;
+            UpdateStickPosition(e);
+        }
 
         public void OnDragInteraction(object sender, TouchEventArgs e)
           => UpdateStickPosition(e);
@@ -35,6 +38,7 @@ namespace DroneMonitor.Platforms.Android
             JoystickDrawable.Center = new PointF(80, 80);
             JoystickCanvas.Invalidate();
             ApplyVirtualStick(0, 0);
+            _androidHandler.IsControlByPad = false; // ゲームパッド制御を無効にする
         }
 
         void UpdateStickPosition(TouchEventArgs e)
@@ -64,6 +68,11 @@ namespace DroneMonitor.Platforms.Android
         void ApplyVirtualStick(float stickX, float stickY)
         {
             if(_androidHandler != null)_androidHandler.OnStickChanged(stickX, stickY);
+        }
+
+        private void StickEnableButton_Clicked(object sender, EventArgs e)
+        {
+
         }
     }
 }
