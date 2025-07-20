@@ -177,8 +177,7 @@ namespace DroneMonitor.Views
             //PAD操作ではないがクリックによってスライダー値が変更された場合
             else if (changedIndex != -1)
             {
-                buf[0] = (byte)changedIndex; // コマンドID
-                buf[1] = buf[changedIndex]; // スロットル値
+                buf = new byte[] { (byte)changedIndex, buf[changedIndex] };
                 c.WriteAsync(buf);
                 _lastSentValues[_sliders[changedIndex]] = _newInputValues[_sliders[changedIndex]];
             }
@@ -186,10 +185,7 @@ namespace DroneMonitor.Views
             //スロットル操作の時
             if(_lastSentValues[throttleSeekBar] != _newInputValues[throttleSeekBar] )
             {
-                buf[0] = 0x00; // コマンドID
-                //将来の実装のためにfloatに変換しておく
-                var newValue = BitConverter.GetBytes((float)_newInputValues[throttleSeekBar]);
-                System.Array.Copy(newValue, 0, buf, 1, newValue.Length);
+                buf = new byte[]{ 0x00, _newInputValues[throttleSeekBar] };
                 await c.WriteAsync(buf);
                 _lastSentValues[throttleSeekBar] = _newInputValues[throttleSeekBar];
             }
