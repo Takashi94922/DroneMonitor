@@ -5,13 +5,29 @@
              xmlns:android="clr-namespace:DroneMonitor.Platforms.Android"
              Title="BT DRONE">
     <Grid ColumnDefinitions="*"
-              RowDefinitions="*, *,*,*,*,*, *, 200" Margin="20,0,20,0">
-        <!-- メッセージ -->
-        <VerticalStackLayout Grid.Row="0" Grid.ColumnSpan="0" Margin="0,0,0,20">
-            <Label x:Name="msgWindow" Text="…" HorizontalOptions="Center"  />
-            <Label x:Name="msgPad"    Text="…" HorizontalOptions="Center" />
-        </VerticalStackLayout>
-        
+              RowDefinitions="Auto,*,*, *,*,*, *, 200" Margin="20,0,20,0">
+
+        <!-- メッセージ: Gridで実装、左が伸びて右にラジオボタン群を右寄せ -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左: msgWindow / msgPad を縦に並べる -->
+            <VerticalStackLayout Grid.Column="0" VerticalOptions="Center" Spacing="4" HorizontalOptions="Center">
+                <Label x:Name="msgWindow" Text="…" HorizontalOptions="Center"  />
+                <Label x:Name="msgPad"    Text="…" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- 右: ラジオボタン群を右寄せ -->
+            <HorizontalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="End" Spacing="8">
+                <Label Text="ターゲット:" VerticalOptions="Center" />
+                <RadioButton x:Name="TypeVert" Content="A" GroupName="TargetGroup" IsChecked="True" />
+                <RadioButton x:Name="TypeXpider" Content="B" GroupName="TargetGroup" />
+            </HorizontalStackLayout>
+        </Grid>
+
         <!-- 横型 Slider を縦積み -->
         <Slider x:Name="S1SeekBar"    Maximum="100" Value="50" Grid.Row="1" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S2SeekBar"    Maximum="100" Value="50" Grid.Row="2" Grid.Column="0" Margin="20,10,20,10" />

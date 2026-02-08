@@ -17,6 +17,7 @@ namespace DroneMonitor.Views
 
         // 変化量しきい値（= 送信するために必要な最小 Δ）
         private const byte SEND_THRESHOLD = 1;
+
 #if WINDOWS
         private WindowsGamepadHandler? _gamepadHandler;
 #elif ANDROID
@@ -48,6 +49,10 @@ namespace DroneMonitor.Views
             _sendControlUTimer = Application.Current.Dispatcher.CreateTimer();
             _sendControlUTimer.Interval = TimeSpan.FromMilliseconds(100);
             _sendControlUTimer.Tick += SendSliderValueAsync;
+
+            //ドローンタイプ選択用ラジオボタン
+            TypeVert.CheckedChanged += OnTargetCheckedChanged;
+            TypeXpider.CheckedChanged += OnTargetCheckedChanged;
         }
         protected override void OnAppearing()
         {
@@ -212,6 +217,23 @@ namespace DroneMonitor.Views
                 _bleService.NotificationReceived -= OnNotificationReceived;
             }
         }
+
+        // メソッド: CheckedChanged ハンドラ
+        private void OnTargetCheckedChanged(object? sender, CheckedChangedEventArgs e)
+        {
+            // e.Value==true のときにチェックされた側を処理
+            if (!e.Value || _gamepadHandler == null) return;
+
+            if (sender == TypeVert)
+            {
+                _gamepadHandler.DroneType = 0; // Vert を選択
+            }
+            else if (sender == TypeXpider)
+            {
+                _gamepadHandler.DroneType = 1; // X を選択
+            }
+        }
+
     }
 
 }

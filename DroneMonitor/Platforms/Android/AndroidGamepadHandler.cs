@@ -4,6 +4,8 @@ namespace DroneMonitor.Platforms.Android
 {
     public class AndroidGamepadHandler : GamepadHandler
     {
+        public int DroneType { get; set; } = 0; // 0:垂直, 1:X字
+
         public AndroidGamepadHandler(Slider[] sliderArray, Label messageLabel)
             : base(sliderArray, messageLabel)
         {

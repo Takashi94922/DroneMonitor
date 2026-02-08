@@ -8,7 +8,8 @@ namespace DroneMonitor.Platforms.Windows
         private Gamepad? _gamepad;
         private GamepadButtons _lastButtons = GamepadButtons.None;
         private IDispatcherTimer? _gamepadTimer;
-        
+        public int DroneType { get; set; } = 0; // 0:垂直, 1:X字
+
         public WindowsGamepadHandler(Slider[] sliderArray, Label messageLabel)
             : base(sliderArray, messageLabel)
         {
@@ -131,10 +132,57 @@ namespace DroneMonitor.Platforms.Windows
             float dx = Math.Abs(rollStick) < DEAD_ZONE ? 0 : rollStick;
             float dy = Math.Abs(pitchStick) < DEAD_ZONE ? 0 : pitchStick;
 
-            U5[1] = +dx * ROLL_SENS + dy * PITCH_SENS;
-            U5[2] = -dx * ROLL_SENS + dy * PITCH_SENS;
-            U5[3] = -dx * ROLL_SENS - dy * PITCH_SENS;
-            U5[4] = +dx * ROLL_SENS - dy * PITCH_SENS;
+            Array DrontypePitchMatrix = new float[2, 2, 4]
+            {
+                { { +1.0f, -1.0f, -1.0f, 1.0f }, { +1.0f, +1.0f, -1.0f, -1.0f } }, // 0:垂直
+                { { +1.0f, -1.0f, 0f, 0f }, { +1.0f, 0f, 0f, -1.0f } }  // 1:X字
+            };
+
+            if (DroneType == 0)
+            {
+                for (int i = 1; i < 5; i++)
+                {
+                    U5[i] = (DrontypePitchMatrix.GetValue(0, 0, i - 1) is float val1 ? val1 * dx * ROLL_SENS : 0)
+                          + (DrontypePitchMatrix.GetValue(0, 1, i - 1) is float val2 ? val2 * dy * PITCH_SENS : 0);
+                }
+            }
+            else if(DroneType == 1) // X字
+            {
+                //無操作
+                if(dx == 0 && dy == 0)
+                {
+                    U5[1] = 0;
+                    U5[2] = 0;
+                    U5[3] = 0;
+                    U5[4] = 0;
+                    return;
+                }
+                
+                //pitch
+                if (dy < 0)
+                {
+                    U5[2] = Math.Abs(dy) * PITCH_SENS;
+                    U5[3] = Math.Abs(dy) * PITCH_SENS;
+                }
+                else {
+                    U5[1] = Math.Abs(dy) * PITCH_SENS;
+                    U5[4] = Math.Abs(dy) * PITCH_SENS;
+                }
+
+                //roll
+                if (dx < 0)
+                {
+                    U5[3] += Math.Abs(dx) * ROLL_SENS;
+                    U5[4] += Math.Abs(dx) * ROLL_SENS;
+                }
+                else
+                {
+                    U5[1] += Math.Abs(dx) * ROLL_SENS;
+                    U5[2] += Math.Abs(dx) * ROLL_SENS;
+                }
+            }
+
+
         }
 
         private void ControlYaw(float yawPls, float yawMins)
@@ -146,8 +194,10 @@ namespace DroneMonitor.Platforms.Windows
             float dy = Math.Abs(yawMins) < DEAD_ZONE ? 0 : yawMins;
             float delta = (dx - dy) * YAW_SENS;
 
-            for (int i = 1; i < 5; i++) U5[i] += delta;
-        
+            if(DroneType == 0) // 垂直
+            {
+                for (int i = 1; i < 5; i++) U5[i] += delta;
+            }        
         }
         private void ControlThrottle(float throttleStick)
         {
