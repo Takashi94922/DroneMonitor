@@ -46,10 +46,49 @@ namespace DroneMonitor.Platforms.Android
             float dx = Math.Abs(rollStick) < DEAD_ZONE ? 0 : rollStick;
             float dy = Math.Abs(pitchStick) < DEAD_ZONE ? 0 : pitchStick;
 
-            U5[1] = +dx * ROLL_SENS + dy * PITCH_SENS;
-            U5[2] = -dx * ROLL_SENS + dy * PITCH_SENS;
-            U5[3] = -dx * ROLL_SENS - dy * PITCH_SENS;
-            U5[4] = +dx * ROLL_SENS - dy * PITCH_SENS;
+            if(DroneType == 0)
+            {
+                U5[1] = +dx * ROLL_SENS + dy * PITCH_SENS;
+                U5[2] = -dx * ROLL_SENS + dy * PITCH_SENS;
+                U5[3] = -dx * ROLL_SENS - dy * PITCH_SENS;
+                U5[4] = +dx * ROLL_SENS - dy * PITCH_SENS;
+            }
+            else if(DroneType == 1)
+            {
+                //無操作
+                if (dx == 0 && dy == 0)
+                {
+                    U5[1] = 0;
+                    U5[2] = 0;
+                    U5[3] = 0;
+                    U5[4] = 0;
+                    return;
+                }
+
+                //pitch
+                if (dy < 0)
+                {
+                    U5[2] = Math.Abs(dy) * PITCH_SENS;
+                    U5[3] = Math.Abs(dy) * PITCH_SENS;
+                }
+                else
+                {
+                    U5[1] = Math.Abs(dy) * PITCH_SENS;
+                    U5[4] = Math.Abs(dy) * PITCH_SENS;
+                }
+
+                //roll
+                if (dx < 0)
+                {
+                    U5[3] += Math.Abs(dx) * ROLL_SENS;
+                    U5[4] += Math.Abs(dx) * ROLL_SENS;
+                }
+                else
+                {
+                    U5[1] += Math.Abs(dx) * ROLL_SENS;
+                    U5[2] += Math.Abs(dx) * ROLL_SENS;
+                }
+            }
         }
 
         private void ControlYaw(float yawPls, float yawMins)
