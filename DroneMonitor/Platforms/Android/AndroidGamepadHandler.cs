@@ -39,7 +39,7 @@ namespace DroneMonitor.Platforms.Android
 
         private void ControlRollPitch(float rollStick, float pitchStick)
         {
-            const float DEAD_ZONE = 0.15f;
+            const float DEAD_ZONE = 0.0f;
             const float ROLL_SENS = 30f;
             const float PITCH_SENS = 30f;
 
@@ -55,39 +55,12 @@ namespace DroneMonitor.Platforms.Android
             }
             else if(DroneType == 1)
             {
-                //無操作
-                if (dx == 0 && dy == 0)
-                {
-                    U5[1] = 0;
-                    U5[2] = 0;
-                    U5[3] = 0;
-                    U5[4] = 0;
-                    return;
-                }
-
-                //pitch
-                if (dy < 0)
-                {
-                    U5[2] = Math.Abs(dy) * PITCH_SENS;
-                    U5[3] = Math.Abs(dy) * PITCH_SENS;
-                }
-                else
-                {
-                    U5[1] = Math.Abs(dy) * PITCH_SENS;
-                    U5[4] = Math.Abs(dy) * PITCH_SENS;
-                }
-
-                //roll
-                if (dx < 0)
-                {
-                    U5[3] += Math.Abs(dx) * ROLL_SENS;
-                    U5[4] += Math.Abs(dx) * ROLL_SENS;
-                }
-                else
-                {
-                    U5[1] += Math.Abs(dx) * ROLL_SENS;
-                    U5[2] += Math.Abs(dx) * ROLL_SENS;
-                }
+                //padの象限によって制御対象を変える
+                float c45 = (float)(Math.Cos(Math.PI / 4));
+                U5[1] = c45 * dx + c45 * dy < 0 ? 0 : (c45 * dx + c45 * dy) * 50;
+                U5[2] = c45 * dx - c45 * dy < 0 ? 0 : (c45 * dx - c45 * dy) * 50;
+                U5[3] = -c45 * dx - c45 * dy < 0 ? 0 : (-c45 * dx - c45 * dy) * 50;
+                U5[4] = -c45 * dx + c45 * dy < 0 ? 0 : (-c45 * dx + c45 * dy) * 50;
             }
         }
 
