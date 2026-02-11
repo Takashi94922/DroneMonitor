@@ -23,8 +23,8 @@
             <!-- 右: ラジオボタン群を右寄せ -->
             <HorizontalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="End" Spacing="8">
                 <Label Text="ターゲット:" VerticalOptions="Center" />
-                <RadioButton x:Name="TypeVert" Content="A" GroupName="TargetGroup" IsChecked="True" />
-                <RadioButton x:Name="TypeXpider" Content="B" GroupName="TargetGroup" />
+                <RadioButton x:Name="TypeVert" Content="A" GroupName="TargetGroup"/>
+                <RadioButton x:Name="TypeXpider" Content="B" GroupName="TargetGroup" IsChecked="True" />
             </HorizontalStackLayout>
         </Grid>
 

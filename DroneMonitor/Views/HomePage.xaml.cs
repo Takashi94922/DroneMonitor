@@ -78,7 +78,7 @@ namespace DroneMonitor.Views
             {
                 if (s == throttleSeekBar)
                 {
-                    s.Value = 0;
+                    s.Value = 1;
                     _lastSentValues[s] = 0;
                 }
                 else
