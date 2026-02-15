@@ -157,9 +157,9 @@ namespace DroneMonitor.Views
                 var slider = _sliders[i];
                 byte newVal = _newInputValues[slider];
                 byte oldVal = _lastSentValues[slider];
+                buf[i] = oldVal; // とりあえず古い値をセット
 
                 // 新しい値のとき、送信準備
-
                 if (newVal != oldVal)
                 {
                     buf[i] = newVal;

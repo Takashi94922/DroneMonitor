@@ -9,7 +9,7 @@ namespace DroneMonitor.Platforms.Windows
         private Gamepad? _gamepad;
         private GamepadButtons _lastButtons = GamepadButtons.None;
         private IDispatcherTimer? _gamepadTimer;
-        public int DroneType { get; set; } = 0; // 0:垂直, 1:X字
+        public int DroneType { get; set; } = 1; // 0:垂直, 1:X字
 
         public WindowsGamepadHandler(Slider[] sliderArray, Label messageLabel)
             : base(sliderArray, messageLabel)
@@ -107,7 +107,7 @@ namespace DroneMonitor.Platforms.Windows
             // Aボタンが押されている場合は制御
             if (IsControlByPad)
             {
-                U5 = new List<float> { U5[0], 0, 0, 0, 0 }; // U5をリセット
+               // U5 = new List<float> { U5[0], 0, 0, 0, 0 }; // U5をリセット
 
                 // スティックの値を取得して制御
                 ControlRollPitch((float)reading.LeftThumbstickX, (float)reading.LeftThumbstickY);
@@ -116,7 +116,7 @@ namespace DroneMonitor.Platforms.Windows
                 //Servoのオフセットを追加
                 for (int i = 1; i < sliders.Length; i++)
                 {
-                    sliders[i].Value = U5[i] + 50;
+                    sliders[i].Value = U5[i] + 50f;
                 }
 
             }
@@ -126,7 +126,7 @@ namespace DroneMonitor.Platforms.Windows
 
         private void ControlRollPitch(float rollStick, float pitchStick)
         {
-            const float DEAD_ZONE = 0.0f;
+            const float DEAD_ZONE = 0.01f;
             const float ROLL_SENS = 30f;
             const float PITCH_SENS = 30f;
 
@@ -151,10 +151,13 @@ namespace DroneMonitor.Platforms.Windows
             {
                 //padの象限によって制御対象を変える
                 float c45 = (float)(Math.Cos(Math.PI / 4));
-                U5[1] = c45 * dx + c45 * dy < 0 ? 0 : (c45 * dx + c45 * dy) * 50;
-                U5[2] = c45 * dx - c45 * dy < 0 ? 0 : (c45 * dx - c45 * dy) * 50;
-                U5[3] = -c45 * dx - c45 * dy < 0 ? 0 : (-c45 * dx - c45 * dy) * 50;
-                U5[4] = -c45 * dx + c45 * dy < 0 ? 0 : (-c45 * dx + c45 * dy) * 50;
+                Debug.WriteLine($"dx: {dx}, dy: {dy}, c45*dx+c45*dy: {c45 * dx + c45 * dy}");
+                float Clamp50(float v) => Math.Clamp(v * 50, 0, 50);
+
+                U5[1] = Clamp50(c45 * dx + c45 * dy);
+                U5[2] = Clamp50(c45 * dx - c45 * dy);
+                U5[3] = Clamp50(-c45 * dx - c45 * dy);
+                U5[4] = Clamp50(-c45 * dx + c45 * dy);
             }
         }
 
