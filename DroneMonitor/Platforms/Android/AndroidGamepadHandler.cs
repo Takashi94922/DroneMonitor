@@ -57,10 +57,12 @@ namespace DroneMonitor.Platforms.Android
             {
                 //padの象限によって制御対象を変える
                 float c45 = (float)(Math.Cos(Math.PI / 4));
-                U5[1] = c45 * dx + c45 * dy < 0 ? 0 : (c45 * dx + c45 * dy) * 50;
-                U5[2] = c45 * dx - c45 * dy < 0 ? 0 : (c45 * dx - c45 * dy) * 50;
-                U5[3] = -c45 * dx - c45 * dy < 0 ? 0 : (-c45 * dx - c45 * dy) * 50;
-                U5[4] = -c45 * dx + c45 * dy < 0 ? 0 : (-c45 * dx + c45 * dy) * 50;
+                float Clamp50(float v) => Math.Clamp(v * 50, 0, 50);
+
+                U5[1] = Clamp50(c45 * dx + c45 * dy);
+                U5[2] = Clamp50(c45 * dx - c45 * dy);
+                U5[3] = Clamp50(-c45 * dx - c45 * dy);
+                U5[4] = Clamp50(-c45 * dx + c45 * dy);
             }
         }
 

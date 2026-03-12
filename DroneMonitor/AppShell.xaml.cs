@@ -1,5 +1,7 @@
-﻿using System;
-using DroneMonitor.Views;
+﻿using DroneMonitor.Views;
+using Plugin.BLE.Abstractions.Contracts;
+using System;
+using System.Diagnostics;
 
 namespace DroneMonitor
 {
@@ -7,6 +9,7 @@ namespace DroneMonitor
     {
         private readonly BleService _bleService = new();
         private bool _isConnected = false;
+
 
         public AppShell()
         {
@@ -18,6 +21,7 @@ namespace DroneMonitor
 
             // タブ切り替え時にも渡す
             this.Navigated += (s, e) => SetBleServiceToCurrentPage();
+            _bleService.UnexpectedDisconnected += OnDisconnected;
         }
 
         private void SetBleServiceToCurrentPage()
@@ -67,8 +71,14 @@ namespace DroneMonitor
                 await DiconnectBleServiceToCurrentPage();
                 await _bleService.DisconnectAsync();
                 _isConnected = false;
-                SetBleButtonState(_isConnected);
+                MainThread.BeginInvokeOnMainThread(() => SetBleButtonState(_isConnected));
             }
+        }
+        private void OnDisconnected(object? sender, IDevice device)
+        {
+            Debug.WriteLine("予期せぬ切断");
+            _isConnected = false;
+            MainThread.BeginInvokeOnMainThread(() => SetBleButtonState(false));
         }
 
         private void SetBleButtonState(bool connected)

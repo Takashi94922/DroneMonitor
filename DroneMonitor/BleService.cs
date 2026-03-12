@@ -28,11 +28,15 @@ public class BleService
     private readonly Guid CHAR_UUID_Command = To128BitUuid(0xFF05);
 
     public event EventHandler<byte[]>? NotificationReceived;
+    public event EventHandler<IDevice>? UnexpectedDisconnected;
 
     public BleService()
     {
         Ble = CrossBluetoothLE.Current;
         Adapter = CrossBluetoothLE.Current.Adapter;
+
+        Adapter.DeviceDisconnected += OnDeviceDisconnected;
+        Adapter.DeviceConnectionLost += OnDeviceDisconnected;
     }
     async Task<bool> RequestBlePermissionsAsync()
     {
@@ -58,30 +62,33 @@ public class BleService
         {
             // サービス UUID で絞り込み
             //ServiceUuids = new[] { SERVICE_UUID },
-            DeviceAddresses = new[] { "4c:11:ae:eb:91:86" }
+            //DeviceAddresses = new[] { "4c:11:ae:eb:91:86" }
             // (必要ならDeviceName, ManufacturerDataFiltersなども指定可能)
         };
 
-        Adapter.DeviceDiscovered += OnDeviceDiscovered;
+        var tcs = new TaskCompletionSource<IDevice>();
+
+        // ★ ハンドラを1つだけ登録
+        EventHandler<DeviceEventArgs>? handler = null;
+        handler = (s, e) =>
+        {
+            if (e.Device.Name?.Contains(deviceName) == true)
+            {
+                tcs.TrySetResult(e.Device);
+            }
+        };
+        Adapter.DeviceDiscovered += handler;
 
         try
         {
-            var tcs = new TaskCompletionSource<IDevice>();
-            Adapter.DeviceDiscovered += (s, e) =>
-            {
-                if (e.Device.Name?.Contains(deviceName) == true)
-                    tcs.TrySetResult(e.Device);
-            };
-
-            await Adapter.StopScanningForDevicesAsync();
-            await Adapter.StartScanningForDevicesAsync(filter, cts.Token);
+            var scanningTask = Adapter.StartScanningForDevicesAsync(filter, cts.Token);
             Device = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task ? tcs.Task.Result : null;
             await Adapter.StopScanningForDevicesAsync();
-            Adapter.DeviceDiscovered -= OnDeviceDiscovered;
 
             if (Device == null)
                 return false;
 
+            await scanningTask;
             await Adapter.ConnectToDeviceAsync(Device);
 #if ANDROID
 
@@ -110,12 +117,10 @@ public class BleService
 
             for (int i = 0; i < uuids.Length; i++)
             {
-                var c = chars[i];
-                if (c != null)
+                if (chars[i] != null)
                 {
                     // 例: uuids と同じ順番で "Xhat_Telem" などのキーを用意しておく
-                    var key = keys[i];
-                    Characteristics[key] = c;
+                    Characteristics[keys[i]] = chars[i];
                 }
             }
 
@@ -127,17 +132,17 @@ public class BleService
         }
         finally
         {
-            await Adapter.StopScanningForDevicesAsync();
-
-            Adapter.DeviceDiscovered -= OnDeviceDiscovered;
+            Adapter.DeviceDiscovered -= handler;
         }
-
-        void OnDeviceDiscovered(object? sender, DeviceEventArgs e)
+    }
+    private void OnDeviceDisconnected(object? sender, DeviceEventArgs e)
+    {
+        if (Device != null && e.Device.Id == Device.Id)
         {
-            if (e.Device.Name != null && e.Device.Name.Contains(deviceName))
-            {
-                Device = e.Device;
-            }
+            Device = null;
+            Service = null;
+            Characteristics.Clear();
+            UnexpectedDisconnected?.Invoke(this, e.Device);
         }
     }
 
@@ -166,11 +171,34 @@ public class BleService
     {
         if (IsConnected)
         {
-            await Adapter.DisconnectDeviceAsync(Device);
+            // ① 通知をすべて停止してイベント解除
+            foreach (var kv in Characteristics)
+            {
+                var c = kv.Value;
+                try
+                {
+                    c.ValueUpdated -= OnValueUpdated;
+
+                    if (c.CanUpdate)
+                        await c.StopUpdatesAsync();
+                }
+                catch
+                {
+                    // 切断中は GATT エラーが出ることがあるので握りつぶす
+                }
+            }
+
+            // ② デバイス切断
+            try
+            {
+                    await Adapter.DisconnectDeviceAsync(Device);
+            }
+            catch
+            {
+                // Android では切断中に例外が出ることがあるので無視
+            }
+
         }
-        Device = null;
-        Service = null;
-        Characteristics.Clear();
     }
 
     private void OnValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
