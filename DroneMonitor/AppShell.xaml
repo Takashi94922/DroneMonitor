@@ -20,5 +20,6 @@
     <TabBar>
         <ShellContent Title="Home" ContentTemplate="{DataTemplate views:HomePage}" />
         <ShellContent Title="Notification" ContentTemplate="{DataTemplate views:ControlDataPage}" />
+        <ShellContent Title="DualInfo" ContentTemplate="{DataTemplate views:DualPage}" />        
     </TabBar>
 </Shell>

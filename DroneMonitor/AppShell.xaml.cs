@@ -35,6 +35,10 @@ namespace DroneMonitor
             {
                 notify.SetBleService(_bleService);
             }
+            else if (CurrentPage is DualPage dual)
+            {
+                dual.SetBleService(_bleService);
+            }
         }
         private async Task DiconnectBleServiceToCurrentPage()
         {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="DroneMonitor.Views.DualPage"
+    Title="Home + Control">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Padding="8" RowSpacing="8">
+        <!-- ヘッダなど必要なら追加 -->
+        <Label Text="Home / Control" Grid.ColumnSpan="2" FontSize="18" HorizontalOptions="Center" />
+        <!-- 左右にそれぞれ既存ページの Content を入れるプレースホルダ -->
+        <ContentView x:Name="HomeContainer" Grid.Row="1" Grid.Column="0" Padding="4" />
+        <ContentView x:Name="ControlContainer" Grid.Row="1" Grid.Column="1" Padding="4" />
+    </Grid>
+</ContentPage>

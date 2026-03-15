@@ -11,8 +11,9 @@ public partial class ControlDataPage : ContentPage
     private BleService? _bleService;
     private float pitch, roll, yaw;
     public List<string> OptionList { get; } = new() { "Pitch P", "Pitch I", "Pitch D", "Roll P", "Roll I", "Roll D", "Yaw P", "Yaw I", "Yaw D"};
-    public List<float> PIDvalues { get; set; } = new() { 6.0f, 0, 3.0f, 10.0f, 0, 8.0f, 0, 0, 0 };
+    public List<float> PIDvalues { get; set; } = new() { 0.0f, 0.0f, 0.0f, 0.0f, 0, 0.0f, 0, 0, 0 };
     public List<string> ContOptionList { get; } = new() { "None", "MIMO", "PID"};
+    private Estimate estimate = new();
 
     public ControlDataPage()
     {
@@ -82,6 +83,9 @@ public partial class ControlDataPage : ContentPage
                 accelValueLabel.Text = $"{floats[0]:F2}, {floats[1]:F2}, {floats[2]:F2}";
                 velocityValueLabel.Text = $"{floats[3]:F2}, {floats[4]:F2}, {floats[5]:F2}";
                 positionValueLabel.Text = "";
+
+                //受信した値をベースにEKFで推定する
+                //将来つくる
             }
             else if (key == "contU_TelemWrite" && data.Length >= 20)
             {

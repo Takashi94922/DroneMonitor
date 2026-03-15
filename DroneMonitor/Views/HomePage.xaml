@@ -23,8 +23,9 @@
             <!-- 右: ラジオボタン群を右寄せ -->
             <HorizontalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="End" Spacing="8">
                 <Label Text="ターゲット:" VerticalOptions="Center" />
-                <RadioButton x:Name="TypeVert" Content="A" GroupName="TargetGroup"/>
-                <RadioButton x:Name="TypeXpider" Content="B" GroupName="TargetGroup" IsChecked="True" />
+                <RadioButton x:Name="TypeVert" Content="Vrt" GroupName="TargetGroup"/>
+                <RadioButton x:Name="TypeXpider" Content="X" GroupName="TargetGroup" IsChecked="True" />
+                <RadioButton x:Name="TypePRY" Content="PRY" GroupName="TargetGroup" />
             </HorizontalStackLayout>
         </Grid>
 
@@ -35,10 +36,43 @@
         <Slider x:Name="S3SeekBar"    Maximum="100" Value="50" Grid.Row="4" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S4SeekBar"    Maximum="100" Value="50" Grid.Row="5" Grid.Column="0" Margin="20,10,20,10" />
 
-        <HorizontalStackLayout Grid.Row="6" Grid.Column="0" HorizontalOptions="Center">
-            <!-- 操作ボタン -->
-            <Button x:Name="throttleMinusBtn" Text="–" Margin="5"/>
-            <Button x:Name="throttlePlusBtn"  Text="+" Margin="5"/>
+        <!-- Stepper に置き換え、pitch/roll/yaw を追加 -->
+        <HorizontalStackLayout Grid.Row="6" Grid.Column="0" HorizontalOptions="Center" Spacing="12">
+            <!-- Throttle -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Throttle" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="throttleStepper" Minimum="0" Maximum="100" Increment="1" Value="0" />
+                    <Label x:Name="throttleValueLabel" Text="0%" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Pitch -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Pitch" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="pitchStepper" Minimum="-30" Maximum="30" Increment="1" Value="5" />
+                    <Label x:Name="pitchValueLabel" Text="5°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Roll -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Roll" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="rollStepper" Minimum="-30" Maximum="30" Increment="1" Value="0" />
+                    <Label x:Name="rollValueLabel" Text="0°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Yaw -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Yaw" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="yawStepper" Minimum="-180" Maximum="180" Increment="1" Value="0" />
+                    <Label x:Name="yawValueLabel" Text="0°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
         </HorizontalStackLayout>
 
         <!-- AndroidのJoystickView -->

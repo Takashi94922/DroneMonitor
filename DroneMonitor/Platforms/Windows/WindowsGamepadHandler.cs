@@ -30,6 +30,7 @@ namespace DroneMonitor.Platforms.Windows
 
         public override void Dispose()
         {
+            Debug.WriteLine("🎮 Gamepad poling stoped");
             _gamepadTimer?.Stop();
             Gamepad.GamepadAdded -= OnGamepadAdded;
             Gamepad.GamepadRemoved -= OnGamepadRemoved;

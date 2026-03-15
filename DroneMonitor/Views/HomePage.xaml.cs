@@ -13,6 +13,11 @@ namespace DroneMonitor.Views
         private readonly Dictionary<Slider, byte> _lastSentValues = new();
         private readonly Dictionary<Slider, byte> _newInputValues = new();
         private readonly Slider[] _sliders;
+
+        private readonly Dictionary<Stepper, byte> _lastSentPIDValues = new();
+        private readonly Dictionary<Stepper, byte> _newInputPIDValues = new();
+        private readonly Stepper[] _steppers;
+
         private IDispatcherTimer? _sendControlUTimer;
 
         // 変化量しきい値（= 送信するために必要な最小 Δ）
@@ -43,20 +48,33 @@ namespace DroneMonitor.Views
                 _newInputValues[slider] = (byte)slider.Value;
             }
 
-            throttlePlusBtn.Clicked += OnPlusClicked;
-            throttleMinusBtn.Clicked += OnMinusClicked;
+            _steppers = new[]
+            {
+                pitchStepper,
+                rollStepper,
+                yawStepper
+            };
+            
+            foreach (var stepper in _steppers)
+            {
+                _lastSentPIDValues[stepper] = (byte)stepper.Value;
+                _newInputPIDValues[stepper] = (byte)stepper.Value;
+            }
+
+            // 操作ボタンを Stepper に変更したため、Stepper のイベントを登録
+            throttleStepper.ValueChanged += OnThrottleStepperChanged;
+            pitchStepper.ValueChanged += OnPRYStepperChanged;
+            rollStepper.ValueChanged += OnPRYStepperChanged;
+            yawStepper.ValueChanged += OnPRYStepperChanged;
 
             _sendControlUTimer = Application.Current.Dispatcher.CreateTimer();
-            _sendControlUTimer.Interval = TimeSpan.FromMilliseconds(100);
+            _sendControlUTimer.Interval = TimeSpan.FromMilliseconds(16);
             _sendControlUTimer.Tick += SendSliderValueAsync;
 
             //ドローンタイプ選択用ラジオボタン
             TypeVert.CheckedChanged += OnTargetCheckedChanged;
             TypeXpider.CheckedChanged += OnTargetCheckedChanged;
-        }
-        protected override void OnAppearing()
-        {
-            base.OnAppearing();
+
 #if WINDOWS
             _gamepadHandler = new WindowsGamepadHandler(_sliders, msgPad);
 #endif
@@ -64,7 +82,12 @@ namespace DroneMonitor.Views
             _gamepadHandler = new AndroidGamepadHandler(_sliders, msgPad);
             // Android では JoystickView を使う場合、AndroidGamepadHandler を使う
             joystickView.SetGamepadHandler(_gamepadHandler);
-#endif
+#endif  
+        }
+
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
         }
 
         async public void SetBleService(BleService bleService)
@@ -73,21 +96,6 @@ namespace DroneMonitor.Views
             // イベントの重複登録を防ぐため一度解除
             _bleService.NotificationReceived += OnNotificationReceived;
 
-            // 各スライダーのイベント登録と、初期値0か 50 をセット
-            foreach (var s in _sliders)
-            {
-                if (s == throttleSeekBar)
-                {
-                    s.Value = 1;
-                    _lastSentValues[s] = 0;
-                }
-                else
-                {
-                    s.ValueChanged += OnSliderChanged;
-                    _lastSentValues[s] = 50;
-                    s.Value = 50;
-                }
-            }
             if (_gamepadHandler != null)
             {
                 _gamepadHandler.Start(); // ゲームパッドのポーリング開始
@@ -101,6 +109,12 @@ namespace DroneMonitor.Views
             _bleService.NotificationReceived -= OnNotificationReceived;
             _sendControlUTimer?.Stop();
             _gamepadHandler?.Dispose(); // ← 新しい Dispose メソッドでゲームパッド処理を停止
+
+            // Stepper イベント解除
+            throttleStepper.ValueChanged -= OnThrottleStepperChanged;
+            pitchStepper.ValueChanged -= OnPRYStepperChanged;
+            rollStepper.ValueChanged -= OnPRYStepperChanged;
+            yawStepper.ValueChanged -= OnPRYStepperChanged;
         }
 
         // BLE通知受信時の処理
@@ -140,6 +154,33 @@ namespace DroneMonitor.Views
             msgWindow.Text = $"{slider.ClassId}: {newValue:0.00}";
         }
 
+        // Stepper ハンドラ: Stepper の変更で対応する Slider を更新（既存の送信処理を流用）
+        private void OnThrottleStepperChanged(object? sender, ValueChangedEventArgs e)
+        {
+            var val = (byte)Math.Round(e.NewValue);
+            throttleValueLabel.Text = val.ToString() + "%";
+            // スライダーに反映すると OnSliderChanged が呼ばれて送信準備が整う
+            throttleSeekBar.Value = val;
+        }
+
+        private void OnPRYStepperChanged(object? sender, ValueChangedEventArgs e)
+        {
+            var val = (byte)Math.Round(e.NewValue);
+            if (sender == pitchStepper)
+            {
+                pitchValueLabel.Text = val.ToString() + "°";
+            }
+            else if (sender == rollStepper)
+            {
+                rollValueLabel.Text = val.ToString() + "°";
+            }
+            else if (sender == yawStepper)
+            {
+                yawValueLabel.Text = val.ToString() + "°";
+            }
+
+        }
+
         private async void SendSliderValueAsync(object sender, object e)
         {
             if (_bleService == null || !_bleService.IsConnected) return;
@@ -149,6 +190,7 @@ namespace DroneMonitor.Views
             var defaultBuf = new byte[]{0x00, 50, 50, 50, 50};
             var buf = (byte[])defaultBuf.Clone();
 
+            //変更なしの場合-1、変更があった場合はそのスライダーのインデックスを保持
             var changedIndex = -1;
 
             //操舵があるか調べる
@@ -170,7 +212,7 @@ namespace DroneMonitor.Views
             // PADコントロールの場合 は無操作でも0に戻す信号が必要
             if (_gamepadHandler.IsControlByPad && changedIndex != -1)
             {
-                buf[0] = 0x0A; // コマンドID
+                buf[0] = 0x0A; // 一斉送信のコマンド
                 c.WriteAsync(buf);
                 for (int i= 1; i < _sliders.Length; i++)
                 {
@@ -194,16 +236,22 @@ namespace DroneMonitor.Views
                 await c.WriteAsync(buf);
                 _lastSentValues[throttleSeekBar] = _newInputValues[throttleSeekBar];
             }
-        }
 
-        private void OnPlusClicked(object? sender, EventArgs e)
-        {
-            throttleSeekBar.Value = Math.Min(throttleSeekBar.Value + 1, throttleSeekBar.Maximum);
-        }
-
-        private void OnMinusClicked(object? sender, EventArgs e)
-        {
-            throttleSeekBar.Value = Math.Max(throttleSeekBar.Value - 1, 0);
+            // PID操作のtargetと値を送信　radに変換するのを忘れないこと
+            for (int i = 0; i < _steppers.Length; i++)
+            {
+                var stepper = _steppers[i];
+                byte newVal = _newInputPIDValues[stepper];
+                byte oldVal = _lastSentPIDValues[stepper];
+                
+                //値に変更があるか調べる
+                if (newVal != oldVal)
+                {
+                    buf = new byte[] { (byte)(0x15 + i), (byte)((float)newVal * 0.0174533f)}; // 0x10, 0x11, 0x12 をターゲットIDとする
+                    await c.WriteAsync(buf);
+                    _lastSentPIDValues[stepper] = newVal;
+                }
+            }
         }
 
         protected override void OnDisappearing()
@@ -215,6 +263,12 @@ namespace DroneMonitor.Views
                  _gamepadHandler?.Dispose();  // ゲームパッド停止
 
                 _bleService.NotificationReceived -= OnNotificationReceived;
+
+                // Stepper イベント解除（重複防止）
+                throttleStepper.ValueChanged -= OnThrottleStepperChanged;
+                pitchStepper.ValueChanged -= OnPRYStepperChanged;
+                rollStepper.ValueChanged -= OnPRYStepperChanged;
+                yawStepper.ValueChanged -= OnPRYStepperChanged;
             }
         }
 
