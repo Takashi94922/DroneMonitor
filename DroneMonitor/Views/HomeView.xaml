@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="DroneMonitor.Views.HomeView"
+             xmlns:android="clr-namespace:DroneMonitor.Platforms.Android">
+    <Grid ColumnDefinitions="*"
+          RowDefinitions="Auto,*,*, *,*,*, *, 200"
+          Margin="20,0,20,0">
+
+        <!-- メッセージ: Gridで実装、左が伸びて右にラジオボタン群を右寄せ -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左: msgWindow / msgPad を縦に並べる -->
+            <VerticalStackLayout Grid.Column="0" VerticalOptions="Center" Spacing="4" HorizontalOptions="Center">
+                <Label x:Name="msgWindow" Text="…" HorizontalOptions="Center"  />
+                <Label x:Name="msgPad"    Text="…" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- 右: ラジオボタン群を右寄せ -->
+            <HorizontalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="End" Spacing="8">
+                <Label Text="ターゲット:" VerticalOptions="Center" />
+                <RadioButton x:Name="TypeVert" Content="Vrt" GroupName="TargetGroup"/>
+                <RadioButton x:Name="TypeXpider" Content="X" GroupName="TargetGroup" IsChecked="True" />
+                <RadioButton x:Name="TypePRY" Content="PRY" GroupName="TargetGroup" />
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- 横型 Slider を縦積み -->
+        <Slider x:Name="S1SeekBar"    Maximum="100" Value="50" Grid.Row="1" Grid.Column="0" Margin="20,10,20,10" />
+        <Slider x:Name="S2SeekBar"    Maximum="100" Value="50" Grid.Row="2" Grid.Column="0" Margin="20,10,20,10" />
+        <Slider x:Name="throttleSeekBar" Maximum="100" Value="0" Grid.Row="3" Grid.Column="0" Margin="20,10,20,10" />
+        <Slider x:Name="S3SeekBar"    Maximum="100" Value="50" Grid.Row="4" Grid.Column="0" Margin="20,10,20,10" />
+        <Slider x:Name="S4SeekBar"    Maximum="100" Value="50" Grid.Row="5" Grid.Column="0" Margin="20,10,20,10" />
+
+        <!-- Stepper に置き換え、pitch/roll/yaw を追加 -->
+        <HorizontalStackLayout Grid.Row="6" Grid.Column="0" HorizontalOptions="Center" Spacing="12">
+            <!-- Throttle -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Throttle" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="throttleStepper" Minimum="0" Maximum="100" Increment="1" Value="0" />
+                    <Label x:Name="throttleValueLabel" Text="0%" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Pitch -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Pitch" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="pitchStepper" Minimum="-30" Maximum="30" Increment="1" Value="-5" />
+                    <Label x:Name="pitchValueLabel" Text="-5°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Roll -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Roll" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="rollStepper" Minimum="-30" Maximum="30" Increment="1" Value="0" />
+                    <Label x:Name="rollValueLabel" Text="0°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+
+            <!-- Yaw -->
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                <Label Text="Yaw" HorizontalOptions="Center"/>
+                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Stepper x:Name="yawStepper" Minimum="-180" Maximum="180" Increment="1" Value="0" />
+                    <Label x:Name="yawValueLabel" Text="0°" VerticalOptions="Center"/>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+        </HorizontalStackLayout>
+
+        <!-- AndroidのJoystickView -->
+        <OnPlatform x:TypeArguments="View">
+            <On Platform="Android">
+                <android:JoystickView x:Name="joystickView"  Grid.Row="7" Grid.Column="0"/>
+            </On>
+        </OnPlatform>
+    </Grid>
+</ContentView>

@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneMonitor.Views.ControlDataView">
+
+    <Grid RowDefinitions="*, *, *, *, *, *"
+          ColumnDefinitions="*, *"
+          Padding="12">
+
+        <!-- 位置 -->
+        <HorizontalStackLayout
+                           Grid.Row="0"
+                           Grid.Column="0" >
+            <Label x:Name="positionTextView"
+               Text="Position"
+               HorizontalOptions="Start"
+               FontSize="12" />
+            <Label x:Name="positionValueLabel"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="12" />
+        </HorizontalStackLayout>
+
+        <!-- 速度 -->
+        <HorizontalStackLayout
+               Grid.Row="0"
+               Grid.Column="1" >
+            <Label x:Name="velocityTextView"
+               Text="Velocity"
+               HorizontalOptions="Start"
+               FontSize="12" />
+            <Label x:Name="velocityValueLabel"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="12" />
+        </HorizontalStackLayout>
+
+        <!-- PRY -->
+        <Label x:Name="pryLabel"
+               Text="PRY:"
+               Grid.Row="1"
+               Grid.Column="0"
+               FontSize="12"
+               TextColor="Black" />
+
+        <HorizontalStackLayout
+               Grid.Row="1"
+               Grid.Column="1" >
+            <!-- 加速度 -->
+            <Label x:Name="accelTextView"
+               Text="Acceleration"
+               HorizontalOptions="Start"
+               FontSize="12" />
+            <Label x:Name="accelValueLabel"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="12" />
+
+        </HorizontalStackLayout>
+        <!-- コントロール状態 -->
+        <Label x:Name="ctrltextView"
+               Grid.Row="2"
+               Grid.Column="0"
+               Text="Control Text"
+               HorizontalOptions="Start"
+               FontSize="12" />
+        <Label x:Name="ctrlValueLabel"
+               Grid.Row="2"
+               Grid.Column="1"
+               Text=""
+               HorizontalOptions="Start"
+               FontSize="12" />
+
+        <!-- コントロールボタン -->
+        <StackLayout Grid.Row="3"
+                     Grid.Column="0"
+                     Orientation="Horizontal"
+                     HorizontalOptions="Start">
+            <Picker x:Name="ContPicker"
+                    Title="制御方法"
+                    SelectedIndex="0"
+                    ItemsSource="{Binding ContOptionList}" />
+            <Button x:Name="beginControl"
+                    Clicked="OnControlButtonClicked"
+                    TextColor="White"
+                    Text="制御開始"/>
+        </StackLayout>
+
+        <Label x:Name="PIDLabel"
+               Text="ゲイン:"
+               Grid.Row="3"
+               Grid.Column="1"
+               FontSize="12"
+               HorizontalOptions="Start"
+               TextColor="Black" />
+
+        <HorizontalStackLayout Grid.Row="4"
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2">
+            <!-- テキスト入力欄 -->
+            <Editor x:Name="KCEntry"
+                   Placeholder="KCを入力してください"
+                   AutoSize="TextChanges"
+                   TextChanged="KCEntry_TextChanged"
+                   MaxLength="400" />
+
+            <!-- 送信ボタン -->
+            <Button x:Name="KCUpdateButton"
+                IsEnabled="False"
+                Text="送信"
+                Clicked="OnSendClicked" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Grid.Row="5"
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2">
+            <Picker x:Name="PIDPicker"
+                    Title="送信先"
+                    ItemsSource="{Binding OptionList}" />
+            <!-- テキスト入力欄 -->
+            <Editor x:Name="PIDgainEntry"
+                    Placeholder="PID Pitch"
+                    AutoSize="TextChanges"
+                    TextChanged="KCEntry_TextChanged"
+                    MaxLength="200" />
+
+            <!-- 送信ボタン -->
+            <Button x:Name="PIDUpdateButton"
+                    IsEnabled="False"
+                    Text="送信"
+                    Clicked="OnSendClicked" />
+        </HorizontalStackLayout>
+    </Grid>
+</ContentView>

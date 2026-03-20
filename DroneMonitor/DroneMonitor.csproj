@@ -85,6 +85,9 @@
 		<MauiXaml Update="Platforms\Android\JoystickView.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
+		<MauiXaml Update="Views\ControlDataView.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
 		<MauiXaml Update="Views\DualPage.xaml">
 		  <Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
@@ -93,6 +96,9 @@
 		</MauiXaml>
 		<MauiXaml Update="Views\ControlDataPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="Views\HomeView.xaml">
+		  <Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
 	</ItemGroup>
 

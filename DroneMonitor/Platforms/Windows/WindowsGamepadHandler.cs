@@ -11,8 +11,8 @@ namespace DroneMonitor.Platforms.Windows
         private IDispatcherTimer? _gamepadTimer;
         public int DroneType { get; set; } = 1; // 0:垂直, 1:X字
 
-        public WindowsGamepadHandler(Slider[] sliderArray, Label messageLabel)
-            : base(sliderArray, messageLabel)
+        public WindowsGamepadHandler(Slider[] sliderArray, Label messageLabel, Stepper[] stepperArray)
+            : base(sliderArray, messageLabel, stepperArray)
         {
         }
         public override void Init()
@@ -59,7 +59,7 @@ namespace DroneMonitor.Platforms.Windows
                 return;
 
             _gamepadTimer = Application.Current.Dispatcher.CreateTimer();
-            _gamepadTimer.Interval = TimeSpan.FromMilliseconds(16);
+            _gamepadTimer.Interval = TimeSpan.FromMilliseconds(20);
             _gamepadTimer.Tick += OnGamepadPoll;
             _gamepadTimer.Start();
 
@@ -80,6 +80,8 @@ namespace DroneMonitor.Platforms.Windows
             if (!_lastButtons.HasFlag(GamepadButtons.B) && reading.Buttons.HasFlag(GamepadButtons.B))
             {
                 IsThrottleByPad = !IsThrottleByPad;
+                //スロットルをパッド操作しているときはstepperを無効か
+                steppers[0].IsEnabled = !IsThrottleByPad;
                 Debug.WriteLine($"Bボタンで切り替え: {IsThrottleByPad}");
             }
             msgPad.Text = $"GamePad : {IsControlByPad}, ThrottlePad : {IsThrottleByPad}";
@@ -120,6 +122,31 @@ namespace DroneMonitor.Platforms.Windows
                     sliders[i].Value = U5[i] + 50f;
                 }
 
+            }
+
+            //十字ボタンでPIDの目標値を変更
+            if (!_lastButtons.HasFlag(GamepadButtons.DPadDown) && reading.Buttons.HasFlag(GamepadButtons.DPadDown))
+            {
+                PID_tar[0] = Math.Max(PID_tar[0] - 1, -30);
+                steppers[1].Value = PID_tar[0];
+                Debug.WriteLine($"PItch down");
+            }else if (!_lastButtons.HasFlag(GamepadButtons.DPadUp) && reading.Buttons.HasFlag(GamepadButtons.DPadUp))
+            {
+                PID_tar[0] = Math.Min(PID_tar[0] + 1, 30);
+                steppers[1].Value = PID_tar[0];
+                Debug.WriteLine($"PItch up");
+            }
+            else if (!_lastButtons.HasFlag(GamepadButtons.DPadLeft) && reading.Buttons.HasFlag(GamepadButtons.DPadLeft))
+            {
+                PID_tar[1] = Math.Max(PID_tar[1] - 1, -30);
+                steppers[2].Value = PID_tar[1];
+                Debug.WriteLine($"Roll down");
+            }
+            else if (!_lastButtons.HasFlag(GamepadButtons.DPadRight) && reading.Buttons.HasFlag(GamepadButtons.DPadRight))
+            {
+                PID_tar[1] = Math.Min(PID_tar[1] + 1, 30);
+                steppers[2].Value = PID_tar[1];
+                Debug.WriteLine($"Roll up");
             }
 
             _lastButtons = reading.Buttons;
@@ -182,7 +209,7 @@ namespace DroneMonitor.Platforms.Windows
             const float THR_SENS = 1f;
 
             float dx = Math.Abs(throttleStick) < DEAD_ZONE ? 0 : throttleStick;
-            U5[0] = (float)Math.Clamp(U5[0] + dx * THR_SENS, 0, 100);
+            U5[0] = (float)Math.Clamp(sliders[0].Value + dx * THR_SENS, 0, 100);
         }
     }
 }

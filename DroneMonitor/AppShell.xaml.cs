@@ -2,6 +2,7 @@
 using Plugin.BLE.Abstractions.Contracts;
 using System;
 using System.Diagnostics;
+using System.Linq; // ← 追加
 
 namespace DroneMonitor
 {
@@ -10,11 +11,15 @@ namespace DroneMonitor
         private readonly BleService _bleService = new();
         private bool _isConnected = false;
 
-
         public AppShell()
         {
             InitializeComponent();
             SetBleButtonState(false);
+
+            // デフォルトタブを設定（例: タイトル "DualInfo" のタブを探して選択）
+            var defaultSection = MainTabBar.Items.FirstOrDefault(s => s.Title == "DualInfo");
+            if (defaultSection != null)
+                MainTabBar.CurrentItem = defaultSection;
 
             // 初期表示時にHomePageへBleServiceを渡す
             SetBleServiceToCurrentPage();
