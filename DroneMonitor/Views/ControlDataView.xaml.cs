@@ -11,6 +11,11 @@ public partial class ControlDataView : ContentView
     private float pitch, roll, yaw;
     private Estimate estimate = new();
 
+    // ジャイロ校正コマンド。結果は Command の通知で [19, status, bias x/y/z(float, deg/s)] が返る
+    private const byte CMD_GYRO_CALIB = 19;
+    private const int GYRO_CALIB_TIMEOUT_MS = 5000;
+    private bool _gyroCalibrating;
+
     // 制御モード（ファームウェアの ControlMethod）: 0=None, 1=MIMO(KC), 2=PID
     private readonly Dictionary<Button, byte> _modeButtons;
 
@@ -69,6 +74,9 @@ public partial class ControlDataView : ContentView
         // 古いファームウェアには無いので false でも問題ない（表示は StatusBarView が担当）
         var ok4 = await _bleService.StartNotificationAsync("LoopStats_Telem");
         Debug.WriteLine($"LoopStats_Telem通知開始: {ok4}");
+        // ドローンからの応答（ジャイロ校正の結果など）
+        var ok5 = await _bleService.StartNotificationAsync("Command");
+        Debug.WriteLine($"Command通知開始: {ok5}");
     }
 
     public void SetBleService(BleService bleService)
@@ -106,6 +114,7 @@ public partial class ControlDataView : ContentView
             button.TextColor = selected ? Colors.White : Colors.Black;
             button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
         }
+        gyroCalibButton.IsEnabled = connected && !_gyroCalibrating;
     }
 
     // 他の画面（緊急停止など）や接続状態の変化でボタン表示を合わせる
@@ -128,6 +137,60 @@ public partial class ControlDataView : ContentView
         {
             _bleService.IsControlBySelf = mode;
         }
+        UpdateModeButtons();
+    }
+
+    private async void OnGyroCalibClicked(object? sender, EventArgs e)
+    {
+        var page = Application.Current?.MainPage;
+        if (_bleService == null || !_bleService.IsConnected)
+        {
+            if (page != null) await page.DisplayAlert("BLE接続エラー", "BLEが接続されていません。接続を確認してください。", "OK");
+            return;
+        }
+        if (page != null && !await page.DisplayAlert("ジャイロ校正",
+                "機体を静止させてから実行してください。\nスロットルが0のときだけ実行されます（約1秒、その間は制御が止まります）。",
+                "実行", "キャンセル"))
+        {
+            return;
+        }
+
+        if (!await _bleService.WriteAsync("Command", new byte[] { CMD_GYRO_CALIB, 0 }))
+        {
+            gyroCalibLabel.Text = "校正コマンドを送れませんでした";
+            return;
+        }
+        _gyroCalibrating = true;
+        gyroCalibLabel.Text = "校正中…（機体を動かさないでください）";
+        UpdateModeButtons();
+
+        // 応答が来なければボタンを戻す（古いファームウェアなど）
+        await Task.Delay(GYRO_CALIB_TIMEOUT_MS);
+        if (_gyroCalibrating)
+        {
+            _gyroCalibrating = false;
+            gyroCalibLabel.Text = "応答がありませんでした";
+            UpdateModeButtons();
+        }
+    }
+
+    // ジャイロ校正の結果を表示する
+    private void ShowGyroCalibResult(byte[] data)
+    {
+        _gyroCalibrating = false;
+        byte status = data[1];
+        float bx = BitConverter.ToSingle(data, 2);
+        float by = BitConverter.ToSingle(data, 6);
+        float bz = BitConverter.ToSingle(data, 10);
+        string bias = $"バイアス {bx:F2}, {by:F2}, {bz:F2} deg/s";
+        gyroCalibLabel.Text = status switch
+        {
+            0 => $"校正完了: {bias}",
+            1 => $"機体が動いていました（結果は使用中）: {bias}",
+            2 => "スロットルが0でないため実行しませんでした",
+            _ => $"不明な応答 ({status})",
+        };
+        gyroCalibLabel.TextColor = status == 0 ? Colors.Gray : Colors.OrangeRed;
         UpdateModeButtons();
     }
 
@@ -164,6 +227,10 @@ public partial class ControlDataView : ContentView
                 // u[0] は推力、u[1..4] はサーボ S1〜S4
                 for (int i = 0; i < 5; i++)
                     _ctrlLabels[i].Text = floats[i].ToString("F1");
+            }
+            else if (key == "Command" && data.Length >= 14 && data[0] == CMD_GYRO_CALIB)
+            {
+                ShowGyroCalibResult(data);
             }
             else if (key == "PRY_Telem" && data.Length >= 12)
             {
