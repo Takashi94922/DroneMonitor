@@ -16,6 +16,7 @@ public partial class ControlDataView : ContentView
     public List<float> PIDvalues { get; set; } = new() { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
     public List<string> ContOptionList { get; } = new() { "None", "MIMO", "PID" };
     private Estimate estimate = new();
+    private uint _lastOverrun = 0; // 取りこぼしが増えたかの判定用
 
     public ControlDataView()
     {
@@ -35,6 +36,13 @@ public partial class ControlDataView : ContentView
         Debug.WriteLine($"contU_TelemWrite通知開始: {ok2}");
         var ok3 = await _bleService.StartNotificationAsync("PRY_Telem");
         Debug.WriteLine($"PRY_Telem通知開始: {ok3}");
+        // 古いファームウェアには無いので false でも問題ない
+        var ok4 = await _bleService.StartNotificationAsync("LoopStats_Telem");
+        Debug.WriteLine($"LoopStats_Telem通知開始: {ok4}");
+        if (!ok4)
+        {
+            loopStatsLabel.Text = "制御ループ負荷: 未対応のファームウェア";
+        }
     }
 
     public void SetBleService(BleService bleService)
@@ -43,10 +51,12 @@ public partial class ControlDataView : ContentView
         if (_bleService != null)
         {
             _bleService.NotificationReceived -= OnNotificationReceived;
+            _bleService.ControlStateChanged -= OnControlStateChanged;
         }
 
         _bleService = bleService;
         _bleService.NotificationReceived += OnNotificationReceived;
+        _bleService.ControlStateChanged += OnControlStateChanged;
 
         if (_bleService != null && _bleService.IsConnected)
         {
@@ -61,6 +71,12 @@ public partial class ControlDataView : ContentView
         beginControl.IsEnabled = _bleService.IsConnected ? true : false;
         beginControl.Text = _bleService.IsControlBySelf != 0 ? "制御停止" : "制御開始";
         beginControl.BackgroundColor = _bleService.IsControlBySelf != 0 ? Colors.Red : Colors.Blue;
+    }
+
+    // 他の画面（緊急停止など）で制御方法が変わったときにボタン表示を合わせる
+    private void OnControlStateChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(UpdateControlButtonState);
     }
 
     private void OnNotificationReceived(object? sender, byte[] data)
@@ -111,6 +127,20 @@ public partial class ControlDataView : ContentView
                 }
                 pryLabel.Text = $"PRY: {pitch:F2}, {roll:F2}, {yaw:F2}";
             }
+            else if (key == "LoopStats_Telem" && data.Length >= 12)
+            {
+                // ファームウェアの loop_stats_t: max_exec_us, overrun(累計), period_us の uint32 x3
+                uint maxExecUs = BitConverter.ToUInt32(data, 0);
+                uint overrun = BitConverter.ToUInt32(data, 4);
+                uint periodUs = BitConverter.ToUInt32(data, 8);
+                uint loadPercent = periodUs > 0 ? maxExecUs * 100 / periodUs : 0;
+
+                loopStatsLabel.Text = $"制御ループ負荷: 最大 {maxExecUs} µs / {periodUs} µs ({loadPercent}%)  取りこぼし {overrun}";
+                // 取りこぼしが増えた、または周期の8割を超えたら赤で警告
+                bool warn = overrun > _lastOverrun || loadPercent >= 80;
+                loopStatsLabel.TextColor = warn ? Colors.Red : Colors.Black;
+                _lastOverrun = overrun;
+            }
         });
     }
 
@@ -122,10 +152,11 @@ public partial class ControlDataView : ContentView
             {
                 Debug.WriteLine("制御開始ボタンがクリックされました");
 
-                if (_bleService.Characteristics.TryGetValue("Command", out var CharCommand))
+                var method = (byte)ContPicker.SelectedIndex;
+                // 制御方法を送信し、届いたときだけ制御開始フラグを更新する
+                if (await _bleService.WriteAsync("Command", new byte[] { 0x05, method }))
                 {
-                    _bleService.IsControlBySelf = (byte)ContPicker.SelectedIndex; // 制御開始フラグを設定
-                    await CharCommand.WriteAsync(new byte[] { 0x05, _bleService.IsControlBySelf }); // 制御方法を送信
+                    _bleService.IsControlBySelf = method;
                     ContPicker.SelectedIndex = 0; //送信したら次はNoneを選択
                 }
                 UpdateControlButtonState();
@@ -157,7 +188,7 @@ public partial class ControlDataView : ContentView
         }
     }
 
-    public void OnSendClicked(object sender, EventArgs e)
+    public async void OnSendClicked(object sender, EventArgs e)
     {
         int KCcount = 0;
         string input = "";
@@ -197,13 +228,13 @@ public partial class ControlDataView : ContentView
                 Debug.WriteLine($"入力エラー: {KCcount}つの値をカンマ区切りで入力してください。");
                 return;
             }
-            if (_bleService.Characteristics.TryGetValue(characteristicKey, out var characteristic))
+            if (_bleService.Characteristics.ContainsKey(characteristicKey))
             {
                 if (sender == KCUpdateButton)
                 {
-                    var valueBytes = valueArray.SelectMany(BitConverter.GetBytes).ToList();
-                    characteristic.WriteAsync(valueBytes.ToArray()).ContinueWith(t =>
-                        Debug.WriteLine($"送信結果: {t.Result}"));
+                    var valueBytes = valueArray.SelectMany(BitConverter.GetBytes).ToArray();
+                    var ok = await _bleService.WriteAsync(characteristicKey, valueBytes);
+                    Debug.WriteLine($"送信結果: {ok}");
                 }
                 else if (sender == PIDUpdateButton)
                 {
@@ -214,10 +245,11 @@ public partial class ControlDataView : ContentView
                     valueBytes[1] = (byte)(index % 3); // 選択されたPIDゲインのインデックス
                     Array.Copy(BitConverter.GetBytes(valueArray[0]), 0, valueBytes, 2, 4); // PID値はfloat
                     Debug.WriteLine($"PIDゲイン送信: コマンドID={valueBytes[0]}, インデックス={valueBytes[1]}, 値={valueBytes[2]}");
-                    characteristic.WriteAsync(valueBytes).ContinueWith(t =>
-                        Debug.WriteLine($"PIDゲイン送信結果: {t.Result}"));
+                    var ok = await _bleService.WriteAsync(characteristicKey, valueBytes);
+                    Debug.WriteLine($"PIDゲイン送信結果: {ok}");
 
-                    setGainLabel(index, valueArray[0]);
+                    // 届いたゲインだけ表示に反映する
+                    if (ok) setGainLabel(index, valueArray[0]);
                 }
             }
         }
@@ -248,6 +280,7 @@ public partial class ControlDataView : ContentView
         if (_bleService != null)
         {
             _bleService.NotificationReceived -= OnNotificationReceived;
+            _bleService.ControlStateChanged -= OnControlStateChanged;
         }
     }
 }

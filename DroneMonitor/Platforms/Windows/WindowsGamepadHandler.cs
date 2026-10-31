@@ -59,7 +59,7 @@ namespace DroneMonitor.Platforms.Windows
                 return;
 
             _gamepadTimer = Application.Current.Dispatcher.CreateTimer();
-            _gamepadTimer.Interval = TimeSpan.FromMilliseconds(20);
+            _gamepadTimer.Interval = TimeSpan.FromMilliseconds(100);
             _gamepadTimer.Tick += OnGamepadPoll;
             _gamepadTimer.Start();
 
@@ -119,7 +119,8 @@ namespace DroneMonitor.Platforms.Windows
                 //Servoのオフセットを追加
                 for (int i = 1; i < sliders.Length; i++)
                 {
-                    sliders[i].Value = U5[i] + 50f;
+                    if(DroneType == 0)sliders[i].Value = U5[i] + 50f;
+                    else if (DroneType == 1)sliders[i].Value = U5[i] + 75f;
                 }
 
             }
@@ -180,7 +181,7 @@ namespace DroneMonitor.Platforms.Windows
                 //padの象限によって制御対象を変える
                 float c45 = (float)(Math.Cos(Math.PI / 4));
                 Debug.WriteLine($"dx: {dx}, dy: {dy}, c45*dx+c45*dy: {c45 * dx + c45 * dy}");
-                float Clamp50(float v) => Math.Clamp(v * 50, 0, 50);
+                float Clamp50(float v) => Math.Clamp(v * 25, -25, 25);
 
                 U5[1] = Clamp50(c45 * dx + c45 * dy);
                 U5[2] = Clamp50(c45 * dx - c45 * dy);
@@ -209,7 +210,7 @@ namespace DroneMonitor.Platforms.Windows
             const float THR_SENS = 1f;
 
             float dx = Math.Abs(throttleStick) < DEAD_ZONE ? 0 : throttleStick;
-            U5[0] = (float)Math.Clamp(sliders[0].Value + dx * THR_SENS, 0, 100);
+            U5[0] = (float)Math.Clamp(U5[0] + dx * THR_SENS, 0, 100);
         }
     }
 }

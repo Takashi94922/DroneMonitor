@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+ï»¿using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using DroneMonitor;
 using DroneMonitor.Views;
@@ -14,23 +14,23 @@ namespace DroneMonitor.Views
         {
             InitializeComponent();
 
-            // HomeView ‚Æ ControlDataView ‚ğ’¼ÚƒzƒXƒg‚·‚éiContentView ƒx[ƒXj
+            // HomeView ã¨ ControlDataView ã‚’ç›´æ¥ãƒ›ã‚¹ãƒˆã™ã‚‹ï¼ˆContentView ãƒ™ãƒ¼ã‚¹ï¼‰
             _homeView = new HomeView();
             _controlView = new ControlDataView();
 
-            // ’¼ÚƒRƒ“ƒeƒi‚ÉƒZƒbƒg
+            // ç›´æ¥ã‚³ãƒ³ãƒ†ãƒŠã«ã‚»ãƒƒãƒˆ
             HomeContainer.Content = _homeView;
             ControlContainer.Content = _controlView;
         }
 
-        // AppShell ‚©‚ç BleService ‚ğ“n‚¹‚é‚æ‚¤‚Éƒ‰ƒbƒp[‚ğ—pˆÓ
+        // AppShell ã‹ã‚‰ BleService ã‚’æ¸¡ã›ã‚‹ã‚ˆã†ã«ãƒ©ãƒƒãƒ‘ãƒ¼ã‚’ç”¨æ„
         public void SetBleService(BleService svc)
         {
             _homeView?.SetBleService(svc);
             _controlView?.SetBleService(svc);
         }
 
-        // •K—v‚È‚çØ’f‘€ì‚àˆÏ÷
+        // å¿…è¦ãªã‚‰åˆ‡æ–­æ“ä½œã‚‚å§”è­²
         public async Task DisconnectBle()
         {
             if (_homeView != null)

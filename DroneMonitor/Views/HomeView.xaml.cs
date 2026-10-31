@@ -7,6 +7,7 @@ using Plugin.BLE.Abstractions.Contracts;
 using Microsoft.Maui.ApplicationModel;
 using System.Text;
 using System.Linq;
+using System.Diagnostics;
 
 namespace DroneMonitor.Views
 {
@@ -22,9 +23,14 @@ namespace DroneMonitor.Views
         private readonly Stepper[] _steppers;
 
         private IDispatcherTimer? _sendControlUTimer;
+        private bool _isSending = false;          // 定期送信の実行中フラグ（UIスレッドからのみ触る）
+        private bool _emergencyStopping = false;  // 緊急停止の送信中は定期送信を打ち切る
 
         // 変化量しきい値（= 送信するために必要な最小 Δ）
         private const byte SEND_THRESHOLD = 1;
+
+        // 緊急停止時のスロットル[%]。0にすると墜落するので、降下できる程度の推力を残す
+        private const byte EMERGENCY_THROTTLE = 30;
 
 #if WINDOWS
         private WindowsGamepadHandler? _gamepadHandler;
@@ -73,7 +79,7 @@ namespace DroneMonitor.Views
             yawStepper.ValueChanged += OnPRYStepperChanged;
 
             _sendControlUTimer = Application.Current.Dispatcher.CreateTimer();
-            _sendControlUTimer.Interval = TimeSpan.FromMilliseconds(16);
+            _sendControlUTimer.Interval = TimeSpan.FromMilliseconds(50);
             _sendControlUTimer.Tick += SendSliderValueAsync;
 
             // ドローンタイプ選択用ラジオボタン
@@ -84,7 +90,7 @@ namespace DroneMonitor.Views
             _gamepadHandler = new WindowsGamepadHandler(_sliders, msgPad, _steppers);
 #endif
 #if ANDROID
-            _gamepadHandler = new AndroidGamepadHandler(_sliders, msgPad);
+            _gamepadHandler = new AndroidGamepadHandler(_sliders, msgPad, _steppers);
             // Android では JoystickView を使う場合、AndroidGamepadHandler を使う
             joystickView.SetGamepadHandler(_gamepadHandler);
 #endif
@@ -219,9 +225,35 @@ namespace DroneMonitor.Views
 
         private async void SendSliderValueAsync(object sender, object e)
         {
+            // 前回の送信がまだ終わっていなければ今回はスキップ（送信の重なり防止）
+            if (_isSending) return;
             if (_bleService == null || !_bleService.IsConnected) return;
-            if (!_bleService.Characteristics.TryGetValue("Command", out var c)) return;
 
+            _isSending = true;
+            try
+            {
+                await SendPendingValuesAsync(_bleService);
+            }
+            catch (Exception ex)
+            {
+                // async void の例外はアプリを落とすので、ここで止める
+                Debug.WriteLine($"送信処理で例外: {ex}");
+            }
+            finally
+            {
+                _isSending = false;
+            }
+        }
+
+        // 緊急停止中は送信を打ち切る。送信できたらtrue
+        private async Task<bool> SendCommandAsync(BleService ble, byte[] buf)
+        {
+            if (_emergencyStopping) return false;
+            return await ble.WriteAsync("Command", buf);
+        }
+
+        private async Task SendPendingValuesAsync(BleService ble)
+        {
             var defaultBuf = new byte[] { 0x00, 50, 50, 50, 50 };
             var buf = (byte[])defaultBuf.Clone();
 
@@ -248,7 +280,7 @@ namespace DroneMonitor.Views
             if (_gamepadHandler != null && _gamepadHandler.IsControlByPad && changedIndex != -1)
             {
                 buf[0] = 0x0A; // 一斉送信のコマンド
-                await c.WriteAsync(buf);
+                if (!await SendCommandAsync(ble, buf)) return;
                 for (int i = 1; i < _sliders.Length; i++)
                 {
                     var slider = _sliders[i];
@@ -259,17 +291,17 @@ namespace DroneMonitor.Views
             // PAD操作ではないがクリックによってスライダー値が変更された場合
             else if (changedIndex != -1)
             {
-                buf = new byte[] { (byte)changedIndex, buf[changedIndex] };
-                await c.WriteAsync(buf);
+                var servoBuf = new byte[] { (byte)changedIndex, buf[changedIndex] };
+                if (!await SendCommandAsync(ble, servoBuf)) return;
                 _lastSentValues[_sliders[changedIndex]] = _newInputValues[_sliders[changedIndex]];
             }
 
             // スロットル操作の時
             if (_lastSentValues[throttleSeekBar] != _newInputValues[throttleSeekBar])
             {
-                buf = new byte[] { 0x00, _newInputValues[throttleSeekBar] };
-                await c.WriteAsync(buf);
-                _lastSentValues[throttleSeekBar] = _newInputValues[throttleSeekBar];
+                var throttle = _newInputValues[throttleSeekBar];
+                if (!await SendCommandAsync(ble, new byte[] { 0x00, throttle })) return;
+                _lastSentValues[throttleSeekBar] = throttle;
             }
 
             // PID操作のtargetと値を送信　radに変換するのを忘れないこと
@@ -284,9 +316,11 @@ namespace DroneMonitor.Views
                 {
                     // 角度をラジアンに変換
                     float sendVal = newVal * 0.0174533f;
-                    buf[0] = (byte)(15 + (i - 1));// 15.. をターゲットIDとする
-                    Array.Copy(BitConverter.GetBytes(sendVal), 0, buf, 1, 4); // PID値はfloat
-                    await c.WriteAsync(buf);
+                    // 上のサーボ・スロットル送信で buf が2バイトに差し替わることがあるので、専用の5バイト配列を使う
+                    var targetBuf = new byte[5];
+                    targetBuf[0] = (byte)(15 + (i - 1));// 15.. をターゲットIDとする
+                    Array.Copy(BitConverter.GetBytes(sendVal), 0, targetBuf, 1, 4); // PID値はfloat
+                    if (!await SendCommandAsync(ble, targetBuf)) return;
                     _lastSentPIDValues[stepper] = newVal;
                 }
             }
@@ -305,6 +339,35 @@ namespace DroneMonitor.Views
             else if (sender == TypeXpider)
             {
                 _gamepadHandler.DroneType = 1; // X を選択
+            }
+        }
+
+        private async void EMTrip_Clicked(object sender, EventArgs e)
+        {
+            // 定期送信の残りを打ち切らせ、緊急時のスロットルを即時に送る
+            // 推力を残して降下させるので、姿勢制御（制御モード）はそのまま継続する
+            _emergencyStopping = true;
+            try
+            {
+                // スライダーに設定（ValueChanged が発生して _newInputValues を更新する）
+                throttleSeekBar.Value = EMERGENCY_THROTTLE;
+                _newInputValues[throttleSeekBar] = EMERGENCY_THROTTLE;
+
+                if (_bleService == null || !_bleService.IsConnected) return;
+
+                bool throttleOk = await _bleService.WriteAsync("Command", new byte[] { 0x00, EMERGENCY_THROTTLE });
+                if (throttleOk) _lastSentValues[throttleSeekBar] = EMERGENCY_THROTTLE; // 失敗時は定期送信で再送される
+
+                msgWindow.Text = throttleOk ? $"緊急停止: スロットル{EMERGENCY_THROTTLE}%を送信しました" : "緊急停止の送信に失敗しました";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"緊急停止で例外: {ex}");
+                msgWindow.Text = "緊急停止の送信に失敗しました";
+            }
+            finally
+            {
+                _emergencyStopping = false;
             }
         }
     }

@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="DroneMonitor.Views.ControlDataView">
 
-    <Grid RowDefinitions="*, *, *, *, *, *"
+    <Grid RowDefinitions="*, *, *, *, *, *, Auto"
           ColumnDefinitions="*, *"
           Padding="12">
 
@@ -130,5 +130,14 @@
                     Text="送信"
                     Clicked="OnSendClicked" />
         </HorizontalStackLayout>
+
+        <!-- 制御ループ負荷（ファームウェアから1秒ごとに通知） -->
+        <Label x:Name="loopStatsLabel"
+               Grid.Row="6"
+               Grid.Column="0"
+               Grid.ColumnSpan="2"
+               Text="制御ループ負荷: -"
+               FontSize="12"
+               TextColor="Black" />
     </Grid>
 </ContentView>

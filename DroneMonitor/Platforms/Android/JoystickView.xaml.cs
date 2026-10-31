@@ -1,4 +1,4 @@
-namespace DroneMonitor.Platforms.Android
+ï»¿namespace DroneMonitor.Platforms.Android
 {
     public partial class JoystickView : ContentView
     {
@@ -23,7 +23,7 @@ namespace DroneMonitor.Platforms.Android
             _androidHandler = handler;
         }
         
-        // « ‚±‚Ì 3 ‚Â‚ğ•K‚¸‚±‚Ì‚Ü‚ÜiƒAƒNƒZƒXCüq‚Í public ‚Å‚à private ‚Å‚à OKj
+        // â†“ ã“ã® 3 ã¤ã‚’å¿…ãšã“ã®ã¾ã¾ï¼ˆã‚¢ã‚¯ã‚»ã‚¹ä¿®é£¾å­ã¯ public ã§ã‚‚ private ã§ã‚‚ OKï¼‰
         public void OnStartInteraction(object sender, TouchEventArgs e)
         {
             _androidHandler.IsControlByPad = true;
@@ -38,12 +38,12 @@ namespace DroneMonitor.Platforms.Android
             JoystickDrawable.Center = new PointF(80, 80);
             JoystickCanvas.Invalidate();
             ApplyVirtualStick(0, 0);
-            _androidHandler.IsControlByPad = false; // ƒQ[ƒ€ƒpƒbƒh§Œä‚ğ–³Œø‚É‚·‚é
+            _androidHandler.IsControlByPad = false; // ã‚²ãƒ¼ãƒ ãƒ‘ãƒƒãƒ‰åˆ¶å¾¡ã‚’ç„¡åŠ¹ã«ã™ã‚‹
         }
 
         void UpdateStickPosition(TouchEventArgs e)
         {
-            // e.Touches[0] ‚ÅÅ‰‚Ìƒ^ƒbƒ`À•W‚ğæ‚é
+            // e.Touches[0] ã§æœ€åˆã®ã‚¿ãƒƒãƒåº§æ¨™ã‚’å–ã‚‹
             var pt = e.Touches.FirstOrDefault();
             if (pt == null) return;
 
@@ -54,14 +54,14 @@ namespace DroneMonitor.Platforms.Android
             var len = MathF.Min(MathF.Sqrt(dx * dx + dy * dy), radius);
             var ang = MathF.Atan2(dy, dx);
 
-            // ƒmƒu‚Ìâ‘ÎˆÊ’u‚ğXV
+            // ãƒãƒ–ã®çµ¶å¯¾ä½ç½®ã‚’æ›´æ–°
             JoystickDrawable.Center = new PointF(
                 center.X + MathF.Cos(ang) * len,
                 center.Y + MathF.Sin(ang) * len
             );
             JoystickCanvas.Invalidate();
 
-            // -1..+1 ³‹K‰»‚µ‚Ä U5 ‚É”½‰f
+            // -1..+1 æ­£è¦åŒ–ã—ã¦ U5 ã«åæ˜ 
             ApplyVirtualStick(dx / radius, -dy / radius);
         }
 

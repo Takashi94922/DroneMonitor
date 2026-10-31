@@ -5,7 +5,7 @@
              x:Class="DroneMonitor.Views.HomeView"
              xmlns:android="clr-namespace:DroneMonitor.Platforms.Android">
     <Grid ColumnDefinitions="*"
-          RowDefinitions="Auto,*,*, *,*,*, *, 200"
+          RowDefinitions="Auto,*,*, *,*,*, *, Auto"
           Margin="20,0,20,0">
 
         <!-- メッセージ: Gridで実装、左が伸びて右にラジオボタン群を右寄せ -->
@@ -33,23 +33,35 @@
         <!-- 横型 Slider を縦積み -->
         <Slider x:Name="S1SeekBar"    Maximum="100" Value="50" Grid.Row="1" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S2SeekBar"    Maximum="100" Value="50" Grid.Row="2" Grid.Column="0" Margin="20,10,20,10" />
-        <Slider x:Name="throttleSeekBar" Maximum="100" Value="0" Grid.Row="3" Grid.Column="0" Margin="20,10,20,10" />
+        
+        <!-- 修正: スライダーを行全幅にしてボタンを重ねる実装 -->
+        <Grid Grid.Row="3" Grid.Column="0" Margin="20,10,20,10" HeightRequest="48" VerticalOptions="Center">
+            <!-- スライダーを背景にフル幅配置 -->
+            <Slider x:Name="throttleSeekBar" Maximum="100" Value="0" IsEnabled="False"
+                    HorizontalOptions="FillAndExpand" VerticalOptions="Center" />
+            <!-- ボタンをスライダーの左上寄せで重ねる（幅を小さく、中央寄せ） -->
+            <AbsoluteLayout HorizontalOptions="Start" VerticalOptions="FillAndExpand">
+                <Button x:Name="EMTrip" Text="Trip" Clicked="EMTrip_Clicked" WidthRequest="48" HeightRequest="36"
+                        AbsoluteLayout.LayoutBounds="0,0.5,48,36" AbsoluteLayout.LayoutFlags="PositionProportional" />
+            </AbsoluteLayout>
+        </Grid>
+        
         <Slider x:Name="S3SeekBar"    Maximum="100" Value="50" Grid.Row="4" Grid.Column="0" Margin="20,10,20,10" />
         <Slider x:Name="S4SeekBar"    Maximum="100" Value="50" Grid.Row="5" Grid.Column="0" Margin="20,10,20,10" />
 
-        <!-- Stepper に置き換え、pitch/roll/yaw を追加 -->
-        <HorizontalStackLayout Grid.Row="6" Grid.Column="0" HorizontalOptions="Center" Spacing="12">
+        <!-- Stepper を FlexLayout にして折り返し対応 -->
+        <FlexLayout Grid.Row="6" Grid.Column="0" Direction="Row" Wrap="Wrap" JustifyContent="Center" AlignItems="Center" Margin="0,10" >
             <!-- Throttle -->
-            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+            <VerticalStackLayout FlexLayout.Basis="25%" HorizontalOptions="Center" Spacing="4" Padding="8">
                 <Label Text="Throttle" HorizontalOptions="Center"/>
                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                    <Stepper x:Name="throttleStepper" Minimum="0" Maximum="100" Increment="1" Value="0" />
+                    <Stepper x:Name="throttleStepper" Minimum="0" Maximum="100" Increment="1" Value="0"/>
                     <Label x:Name="throttleValueLabel" Text="0%" VerticalOptions="Center"/>
                 </HorizontalStackLayout>
             </VerticalStackLayout>
 
             <!-- Pitch -->
-            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+            <VerticalStackLayout FlexLayout.Basis="25%" HorizontalOptions="Center" Spacing="4" Padding="8">
                 <Label Text="Pitch" HorizontalOptions="Center"/>
                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                     <Stepper x:Name="pitchStepper" Minimum="-30" Maximum="30" Increment="1" Value="-5" />
@@ -58,7 +70,7 @@
             </VerticalStackLayout>
 
             <!-- Roll -->
-            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+            <VerticalStackLayout FlexLayout.Basis="25%" HorizontalOptions="Center" Spacing="4" Padding="8">
                 <Label Text="Roll" HorizontalOptions="Center"/>
                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                     <Stepper x:Name="rollStepper" Minimum="-30" Maximum="30" Increment="1" Value="0" />
@@ -67,14 +79,14 @@
             </VerticalStackLayout>
 
             <!-- Yaw -->
-            <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+            <VerticalStackLayout FlexLayout.Basis="25%" HorizontalOptions="Center" Spacing="4" Padding="8">
                 <Label Text="Yaw" HorizontalOptions="Center"/>
                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                     <Stepper x:Name="yawStepper" Minimum="-180" Maximum="180" Increment="1" Value="0" />
                     <Label x:Name="yawValueLabel" Text="0°" VerticalOptions="Center"/>
                 </HorizontalStackLayout>
             </VerticalStackLayout>
-        </HorizontalStackLayout>
+        </FlexLayout>
 
         <!-- AndroidのJoystickView -->
         <OnPlatform x:TypeArguments="View">

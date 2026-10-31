@@ -1,8 +1,9 @@
-using Plugin.BLE;
+ï»¿using Plugin.BLE;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.EventArgs;
 using Plugin.BLE.Abstractions.Extensions;
+using System.Diagnostics;
 
 public class BleService
 {
@@ -11,12 +12,29 @@ public class BleService
     public IDevice? Device { get; private set; }
     public IService? Service { get; private set; }
     public bool IsConnected => Device != null && Adapter.ConnectedDevices.Contains(Device);
-    public byte IsControlBySelf { get; set; } = 0; // §Œä•û–@
 
-    // •¡”Characteristic‚ğ•Û‚·‚éDictionary‚ğ’Ç‰Á
+    // åˆ¶å¾¡æ–¹æ³•ã€‚å¤‰æ›´æ™‚ã¯ ControlStateChanged ã§å„ç”»é¢ã«çŸ¥ã‚‰ã›ã‚‹
+    private byte _isControlBySelf = 0;
+    public byte IsControlBySelf
+    {
+        get => _isControlBySelf;
+        set
+        {
+            if (_isControlBySelf == value) return;
+            _isControlBySelf = value;
+            ControlStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+    public event EventHandler? ControlStateChanged;
+
+    // GATTæ“ä½œã¯åŒæ™‚ã«1ã¤ã—ã‹å®Ÿè¡Œã§ããªã„ï¼ˆAndroidã§ã¯é‡ãªã‚‹ã¨ busy ã§å¤±æ•—ã™ã‚‹ï¼‰ã®ã§ã€
+    // æ›¸ãè¾¼ã¿ã¨é€šçŸ¥ã®é–‹å§‹ãƒ»åœæ­¢ã¯ã“ã®ãƒ­ãƒƒã‚¯ã§ç›´åˆ—åŒ–ã™ã‚‹
+    private readonly SemaphoreSlim _gattLock = new(1, 1);
+
+    // è¤‡æ•°Characteristicã‚’ä¿æŒã™ã‚‹Dictionaryã‚’è¿½åŠ 
     public Dictionary<string, ICharacteristic> Characteristics { get; } = new();
 
-    // ƒT[ƒrƒXEƒLƒƒƒ‰ƒNƒ^ƒŠƒXƒeƒBƒbƒNUUID‚ğ16bit‚©‚ç128bit‚É•ÏŠ·
+    // ã‚µãƒ¼ãƒ“ã‚¹ãƒ»ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒªã‚¹ãƒ†ã‚£ãƒƒã‚¯UUIDã‚’16bitã‹ã‚‰128bitã«å¤‰æ›
     private static Guid To128BitUuid(ushort uuid16) =>
         new Guid($"0000{uuid16:X4}-0000-1000-8000-00805F9B34FB");
 
@@ -26,6 +44,7 @@ public class BleService
     private readonly Guid CHAR_UUID_contU_TelemWrite = To128BitUuid(0xFF03);
     private readonly Guid CHAR_UUID_ContGain_Upd = To128BitUuid(0xFF04);
     private readonly Guid CHAR_UUID_Command = To128BitUuid(0xFF05);
+    private readonly Guid CHAR_UUID_LoopStats_Telem = To128BitUuid(0xFF07);
 
     public event EventHandler<byte[]>? NotificationReceived;
     public event EventHandler<IDevice>? UnexpectedDisconnected;
@@ -40,7 +59,7 @@ public class BleService
     }
     async Task<bool> RequestBlePermissionsAsync()
     {
-        // ˆÊ’uî•ñŒ ŒÀ‚ğƒ`ƒFƒbƒN•ƒŠƒNƒGƒXƒg
+        // ä½ç½®æƒ…å ±æ¨©é™ã‚’ãƒã‚§ãƒƒã‚¯ï¼†ãƒªã‚¯ã‚¨ã‚¹ãƒˆ
         var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (status != PermissionStatus.Granted)
             status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
@@ -57,18 +76,18 @@ public class BleService
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         
-        // ƒXƒLƒƒƒ“‚Ég‚¤ƒtƒBƒ‹ƒ^İ’è‚ğì¬
+        // ã‚¹ã‚­ãƒ£ãƒ³æ™‚ã«ä½¿ã†ãƒ•ã‚£ãƒ«ã‚¿è¨­å®šã‚’ä½œæˆ
         var filter = new ScanFilterOptions
         {
-            // ƒT[ƒrƒX UUID ‚Åi‚è‚İ
+            // ã‚µãƒ¼ãƒ“ã‚¹ UUID ã§çµã‚Šè¾¼ã¿
             //ServiceUuids = new[] { SERVICE_UUID },
             //DeviceAddresses = new[] { "4c:11:ae:eb:91:86" }
-            // (•K—v‚È‚çDeviceName, ManufacturerDataFilters‚È‚Ç‚àw’è‰Â”\)
+            // (å¿…è¦ãªã‚‰DeviceName, ManufacturerDataFiltersãªã©ã‚‚æŒ‡å®šå¯èƒ½)
         };
 
         var tcs = new TaskCompletionSource<IDevice>();
 
-        // š ƒnƒ“ƒhƒ‰‚ğ1‚Â‚¾‚¯“o˜^
+        // â˜… ãƒãƒ³ãƒ‰ãƒ©ã‚’1ã¤ã ã‘ç™»éŒ²
         EventHandler<DeviceEventArgs>? handler = null;
         handler = (s, e) =>
         {
@@ -101,7 +120,8 @@ public class BleService
                 CHAR_UUID_PRY_Telem,
                 CHAR_UUID_contU_TelemWrite,
                 CHAR_UUID_ContGain_Upd,
-                CHAR_UUID_Command
+                CHAR_UUID_Command,
+                CHAR_UUID_LoopStats_Telem
             };
             var keys = new[]
             {
@@ -109,7 +129,8 @@ public class BleService
                 "PRY_Telem",
                 "contU_TelemWrite",
                 "ContGain_Upd",
-                "Command"
+                "Command",
+                "LoopStats_Telem" // å¤ã„ãƒ•ã‚¡ãƒ¼ãƒ ã‚¦ã‚§ã‚¢ã«ã¯ç„¡ã„ã®ã§ null ãªã‚‰ç™»éŒ²ã•ã‚Œãªã„
             };
 
             var tasks = uuids.Select(u => Service.GetCharacteristicAsync(u));
@@ -119,7 +140,7 @@ public class BleService
             {
                 if (chars[i] != null)
                 {
-                    // —á: uuids ‚Æ“¯‚¶‡”Ô‚Å "Xhat_Telem" ‚È‚Ç‚ÌƒL[‚ğ—pˆÓ‚µ‚Ä‚¨‚­
+                    // ä¾‹: uuids ã¨åŒã˜é †ç•ªã§ "Xhat_Telem" ãªã©ã®ã‚­ãƒ¼ã‚’ç”¨æ„ã—ã¦ãŠã
                     Characteristics[keys[i]] = chars[i];
                 }
             }
@@ -146,15 +167,52 @@ public class BleService
         }
     }
 
-    // ’Ê’mŠJnE’â~‚àƒL[‚Åw’è‚Å‚«‚é‚æ‚¤‚É
+    // ã‚­ãƒ¼ã§æŒ‡å®šã—ãŸCharacteristicã«æ›¸ãè¾¼ã‚€ã€‚ä»–ã®GATTæ“ä½œã¨é‡ãªã‚‰ãªã„ã‚ˆã†ç›´åˆ—åŒ–ã™ã‚‹
+    public async Task<bool> WriteAsync(string key, byte[] data)
+    {
+        if (!Characteristics.TryGetValue(key, out var characteristic))
+            return false;
+
+        await _gattLock.WaitAsync();
+        try
+        {
+            await characteristic.WriteAsync(data);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"BLEæ›¸ãè¾¼ã¿å¤±æ•— {key}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _gattLock.Release();
+        }
+    }
+
+    // é€šçŸ¥é–‹å§‹ãƒ»åœæ­¢ã‚‚ã‚­ãƒ¼ã§æŒ‡å®šã§ãã‚‹ã‚ˆã†ã«
     public async Task<bool> StartNotificationAsync(string key)
     {
         if (!Characteristics.TryGetValue(key, out var characteristic))
             return false;
 
-        characteristic.ValueUpdated += OnValueUpdated;
-        await characteristic.StartUpdatesAsync();
-        return true;
+        await _gattLock.WaitAsync();
+        try
+        {
+            characteristic.ValueUpdated -= OnValueUpdated; // äºŒé‡ç™»éŒ²é˜²æ­¢
+            characteristic.ValueUpdated += OnValueUpdated;
+            await characteristic.StartUpdatesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"é€šçŸ¥é–‹å§‹å¤±æ•— {key}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _gattLock.Release();
+        }
     }
 
     public async Task<bool> StopNotificationAsync(string key)
@@ -162,16 +220,29 @@ public class BleService
         if (!Characteristics.TryGetValue(key, out var characteristic))
             return false;
 
-        characteristic.ValueUpdated -= OnValueUpdated;
-        await characteristic.StopUpdatesAsync();
-        return true;
+        await _gattLock.WaitAsync();
+        try
+        {
+            characteristic.ValueUpdated -= OnValueUpdated;
+            await characteristic.StopUpdatesAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"é€šçŸ¥åœæ­¢å¤±æ•— {key}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _gattLock.Release();
+        }
     }
 
     public async Task DisconnectAsync()
     {
         if (IsConnected)
         {
-            // ‡@ ’Ê’m‚ğ‚·‚×‚Ä’â~‚µ‚ÄƒCƒxƒ“ƒg‰ğœ
+            // â‘  é€šçŸ¥ã‚’ã™ã¹ã¦åœæ­¢ã—ã¦ã‚¤ãƒ™ãƒ³ãƒˆè§£é™¤
             foreach (var kv in Characteristics)
             {
                 var c = kv.Value;
@@ -184,18 +255,18 @@ public class BleService
                 }
                 catch
                 {
-                    // Ø’f’†‚Í GATT ƒGƒ‰[‚ªo‚é‚±‚Æ‚ª‚ ‚é‚Ì‚Åˆ¬‚è‚Â‚Ô‚·
+                    // åˆ‡æ–­ä¸­ã¯ GATT ã‚¨ãƒ©ãƒ¼ãŒå‡ºã‚‹ã“ã¨ãŒã‚ã‚‹ã®ã§æ¡ã‚Šã¤ã¶ã™
                 }
             }
 
-            // ‡A ƒfƒoƒCƒXØ’f
+            // â‘¡ ãƒ‡ãƒã‚¤ã‚¹åˆ‡æ–­
             try
             {
                     await Adapter.DisconnectDeviceAsync(Device);
             }
             catch
             {
-                // Android ‚Å‚ÍØ’f’†‚É—áŠO‚ªo‚é‚±‚Æ‚ª‚ ‚é‚Ì‚Å–³‹
+                // Android ã§ã¯åˆ‡æ–­ä¸­ã«ä¾‹å¤–ãŒå‡ºã‚‹ã“ã¨ãŒã‚ã‚‹ã®ã§ç„¡è¦–
             }
 
         }
