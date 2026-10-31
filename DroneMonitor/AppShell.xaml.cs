@@ -16,12 +16,7 @@ namespace DroneMonitor
             InitializeComponent();
             SetBleButtonState(false);
 
-            // デフォルトタブを設定（例: タイトル "DualInfo" のタブを探して選択）
-            var defaultSection = MainTabBar.Items.FirstOrDefault(s => s.Title == "DualInfo");
-            if (defaultSection != null)
-                MainTabBar.CurrentItem = defaultSection;
-
-            // 初期表示時にHomePageへBleServiceを渡す
+            // 初期表示時に表示中のページへBleServiceを渡す（既定タブは先頭の Flight）
             SetBleServiceToCurrentPage();
 
             // タブ切り替え時にも渡す
@@ -32,25 +27,9 @@ namespace DroneMonitor
         private void SetBleServiceToCurrentPage()
         {
             // ShellのCurrentPageは実際には現在表示中のContentPageインスタンス
-            if (CurrentPage is HomePage home)
+            if (CurrentPage is MainPage main)
             {
-                home.SetBleService(_bleService);
-            }
-            else if (CurrentPage is ControlDataPage notify)
-            {
-                notify.SetBleService(_bleService);
-            }
-            else if (CurrentPage is DualPage dual)
-            {
-                dual.SetBleService(_bleService);
-            }
-        }
-        private async Task DiconnectBleServiceToCurrentPage()
-        {
-            // ShellのCurrentPageは実際には現在表示中のContentPageインスタンス
-            if (CurrentPage is HomePage home)
-            {
-                await home.DisconnectBle();
+                main.SetBleService(_bleService);
             }
         }
 
@@ -59,7 +38,11 @@ namespace DroneMonitor
             var btn = (Button)sender;
             if (!_isConnected)
             {
+                // スキャン中は二重に押せないようにし、状態を表示する
+                btn.IsEnabled = false;
+                btn.Text = "スキャン中…";
                 bool connected = await _bleService.ConnectToDeviceAsync("ESP_DRONE");
+                btn.IsEnabled = true;
                 if (connected)
                 {
                     _isConnected = true;
@@ -77,7 +60,6 @@ namespace DroneMonitor
             }
             else
             {
-                await DiconnectBleServiceToCurrentPage();
                 await _bleService.DisconnectAsync();
                 _isConnected = false;
                 MainThread.BeginInvokeOnMainThread(() => SetBleButtonState(_isConnected));

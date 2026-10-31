@@ -80,11 +80,12 @@ namespace DroneMonitor.Platforms.Windows
             if (!_lastButtons.HasFlag(GamepadButtons.B) && reading.Buttons.HasFlag(GamepadButtons.B))
             {
                 IsThrottleByPad = !IsThrottleByPad;
-                //スロットルをパッド操作しているときはstepperを無効か
+                //スロットルをパッド操作しているときはstepperとスライダーを無効化
                 steppers[0].IsEnabled = !IsThrottleByPad;
+                sliders[0].IsEnabled = !IsThrottleByPad;
                 Debug.WriteLine($"Bボタンで切り替え: {IsThrottleByPad}");
             }
-            msgPad.Text = $"GamePad : {IsControlByPad}, ThrottlePad : {IsThrottleByPad}";
+            msgPad.Text = $"GamePad  姿勢: {(IsControlByPad ? "ON" : "OFF")}（Aで切替）  スロットル: {(IsThrottleByPad ? "ON" : "OFF")}（Bで切替）";
 
             // スロットルの制御
             if (IsThrottleByPad)

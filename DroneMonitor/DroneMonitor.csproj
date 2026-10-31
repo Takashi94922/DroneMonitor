@@ -73,11 +73,14 @@
 		<Compile Update="Platforms\Android\JoystickView.xaml.cs">
 			<DependentUpon>JoyStickView.xaml</DependentUpon>
 		</Compile>
-		<Compile Update="Views\HomePage.xaml.cs">
-			<DependentUpon>HomePage.xaml</DependentUpon>
+		<Compile Update="Views\MainPage.xaml.cs">
+			<DependentUpon>MainPage.xaml</DependentUpon>
 		</Compile>
-		<Compile Update="Views\ControlDataPage.xaml.cs">
-			<DependentUpon>ControlDataPage.xaml</DependentUpon>
+		<Compile Update="Views\GainView.xaml.cs">
+			<DependentUpon>GainView.xaml</DependentUpon>
+		</Compile>
+		<Compile Update="Views\StatusBarView.xaml.cs">
+			<DependentUpon>StatusBarView.xaml</DependentUpon>
 		</Compile>
 	</ItemGroup>
 
@@ -88,13 +91,13 @@
 		<MauiXaml Update="Views\ControlDataView.xaml">
 		  <Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
-		<MauiXaml Update="Views\DualPage.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
-		<MauiXaml Update="Views\HomePage.xaml">
+		<MauiXaml Update="Views\MainPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
-		<MauiXaml Update="Views\ControlDataPage.xaml">
+		<MauiXaml Update="Views\GainView.xaml">
+			<Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="Views\StatusBarView.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
 		<MauiXaml Update="Views\HomeView.xaml">

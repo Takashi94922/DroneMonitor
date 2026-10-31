@@ -17,9 +17,8 @@
         </Grid>
     </Shell.TitleView>
 
+    <!-- 画面は MainPage の1枚。Flight / Gains の切り替えは MainPage の中で行う -->
     <TabBar x:Name="MainTabBar">
-        <ShellContent Title="Home" ContentTemplate="{DataTemplate views:HomePage}" />
-        <ShellContent Title="Notification" ContentTemplate="{DataTemplate views:ControlDataPage}" />
-        <ShellContent Title="DualInfo" ContentTemplate="{DataTemplate views:DualPage}" />        
+        <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />
     </TabBar>
 </Shell>

@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneMonitor.Views.GainView">
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="12">
+
+            <!-- PID ゲイン（3軸 × P/I/D） -->
+            <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="PID ゲイン" FontAttributes="Bold" />
+                    <Label Text="空欄の項目は送信しません。黄色＝未送信の変更、赤＝数値として読めない入力。薄字はファームウェアの既定値。"
+                           FontSize="12" TextColor="Gray" />
+                    <Grid x:Name="pidGrid" ColumnDefinitions="70,100,100,100" RowDefinitions="Auto,Auto,Auto,Auto"
+                          ColumnSpacing="8" RowSpacing="4">
+                        <Label Grid.Row="0" Grid.Column="1" Text="P" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="2" Text="I" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="3" Text="D" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="1" Grid.Column="0" Text="Pitch" VerticalOptions="Center" />
+                        <Label Grid.Row="2" Grid.Column="0" Text="Roll" VerticalOptions="Center" />
+                        <Label Grid.Row="3" Grid.Column="0" Text="Yaw" VerticalOptions="Center" />
+                    </Grid>
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="pidDefaultButton" Text="既定値で埋める" Clicked="OnPidDefaultClicked" />
+                        <Button x:Name="pidSendButton" Text="PID を送信" Clicked="OnPidSendClicked" />
+                        <Label x:Name="pidStatusLabel" Text="" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- KC（状態フィードバック）ゲイン 5×6 -->
+            <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="KC ゲイン（MIMO）" FontAttributes="Bold" />
+                    <Label Text="u = −KC·x + 75。行が出力（Thrust, S1〜S4）、列が状態 x1〜x6（現在のファームウェアは x4=Pitch, x5=Roll のみ使用）。30個すべて入力して送信します。"
+                           FontSize="12" TextColor="Gray" />
+                    <Grid x:Name="kcGrid" ColumnDefinitions="70,90,90,90,90,90,90" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                          ColumnSpacing="6" RowSpacing="4">
+                        <Label Grid.Row="0" Grid.Column="1" Text="x1" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="2" Text="x2" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="3" Text="x3" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="4" Text="x4 Pitch" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="5" Text="x5 Roll" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="0" Grid.Column="6" Text="x6" TextColor="Gray" HorizontalOptions="Center" />
+                        <Label Grid.Row="1" Grid.Column="0" Text="Thrust" VerticalOptions="Center" />
+                        <Label Grid.Row="2" Grid.Column="0" Text="S1" VerticalOptions="Center" />
+                        <Label Grid.Row="3" Grid.Column="0" Text="S2" VerticalOptions="Center" />
+                        <Label Grid.Row="4" Grid.Column="0" Text="S3" VerticalOptions="Center" />
+                        <Label Grid.Row="5" Grid.Column="0" Text="S4" VerticalOptions="Center" />
+                    </Grid>
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="kcDefaultButton" Text="既定値で埋める" Clicked="OnKcDefaultClicked" />
+                        <Button x:Name="kcPasteButton" Text="クリップボードから貼り付け" Clicked="OnKcPasteClicked" />
+                        <Button x:Name="kcSendButton" Text="KC を送信" Clicked="OnKcSendClicked" />
+                        <Label x:Name="kcStatusLabel" Text="" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

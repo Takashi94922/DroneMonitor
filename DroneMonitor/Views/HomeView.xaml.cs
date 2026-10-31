@@ -17,6 +17,10 @@ namespace DroneMonitor.Views
         private readonly Dictionary<Slider, byte> _lastSentValues = new();
         private readonly Dictionary<Slider, byte> _newInputValues = new();
         private readonly Slider[] _sliders;
+        private readonly Dictionary<Slider, Label> _servoValueLabels;
+
+        // スロットル指令値[%]が変わったときの通知
+        public event EventHandler<byte>? ThrottleChanged;
 
         private readonly Dictionary<Stepper, float> _lastSentPIDValues = new();
         private readonly Dictionary<Stepper, float> _newInputPIDValues = new();
@@ -51,6 +55,17 @@ namespace DroneMonitor.Views
                 S3SeekBar,
                 S4SeekBar
             };
+
+            _servoValueLabels = new()
+            {
+                [S1SeekBar] = S1ValueLabel,
+                [S2SeekBar] = S2ValueLabel,
+                [S3SeekBar] = S3ValueLabel,
+                [S4SeekBar] = S4ValueLabel,
+            };
+
+            // スロットルの指令値を状態バーなどに知らせる（スライダー・Stepper・ゲームパッド・TRIP のどれで変えても通る）
+            throttleSeekBar.ValueChanged += (s, e) => ThrottleChanged?.Invoke(this, (byte)Math.Round(e.NewValue));
 
             foreach (var slider in _sliders)
             {
@@ -95,9 +110,14 @@ namespace DroneMonitor.Views
             // Android では JoystickView を使う場合、AndroidGamepadHandler を使う
             joystickView.SetGamepadHandler(_gamepadHandler);
 #endif
+            // XAML の初期選択（V字）はイベントが飛ばないので、ここでゲームパッド側に反映する
+            if (_gamepadHandler != null)
+            {
+                _gamepadHandler.DroneType = TypeVert.IsChecked ? 0 : 1;
+            }
         }
 
-        // DualPage や HomePage から呼び出す初期化（BLE ハンドラ登録・タイマー開始など）
+        // MainPage から呼び出す初期化（BLE ハンドラ登録・タイマー開始など）
         public void SetBleService(BleService bleService)
         {
             // 既に登録済みの場合は重複を避ける
@@ -137,7 +157,7 @@ namespace DroneMonitor.Views
             await Task.CompletedTask;
         }
 
-        // DualPage 等から呼ぶクリーンアップ
+        // 明示的に呼ぶクリーンアップ
         public void Cleanup()
         {
             if (_bleService != null)
@@ -186,8 +206,11 @@ namespace DroneMonitor.Views
                 }
             }
 
-            // UI 表示は即時更新
-            msgWindow.Text = $"{slider.ClassId}: {newValue:0.00}";
+            // サーボの数値表示は即時更新
+            if (_servoValueLabels.TryGetValue(slider, out var label))
+            {
+                label.Text = newValue.ToString();
+            }
         }
 
         // Stepper ハンドラ: Stepper の変更で対応する Slider を更新（既存の送信処理を流用）
@@ -343,7 +366,8 @@ namespace DroneMonitor.Views
             }
         }
 
-        private async void EMTrip_Clicked(object sender, EventArgs e)
+        // TRIP（緊急停止）。状態バーの TRIP ボタンから呼ばれる
+        public async Task TripAsync()
         {
             // 定期送信の残りを打ち切らせ、スロットル0を即時に送る
             // 姿勢制御（制御モード）は変更しない

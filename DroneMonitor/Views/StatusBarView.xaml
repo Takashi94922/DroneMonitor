@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneMonitor.Views.StatusBarView">
+    <!-- 画面上部の状態バー。左: 接続・制御モード、中央: TRIP、右: スロットル・制御ループ負荷 -->
+    <Border Padding="12,6" StrokeThickness="0" BackgroundColor="#F0F0F0" StrokeShape="RoundRectangle 6">
+        <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="16">
+            <HorizontalStackLayout Grid.Column="0" Spacing="24" VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="接続" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    <Label x:Name="connectionLabel" Text="未接続" FontSize="16" FontAttributes="Bold" TextColor="Gray" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="制御モード" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    <Label x:Name="controlModeLabel" Text="None" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </HorizontalStackLayout>
+
+            <!-- TRIP（緊急停止）。どの画面からでも押せるよう状態バーの中央に置く -->
+            <Button x:Name="tripButton" Grid.Column="1"
+                    Text="TRIP" FontSize="24" FontAttributes="Bold"
+                    BackgroundColor="#D32F2F" TextColor="White"
+                    WidthRequest="180" HeightRequest="64" CornerRadius="8"
+                    Clicked="OnTripClicked" />
+
+            <HorizontalStackLayout Grid.Column="2" Spacing="24" HorizontalOptions="End" VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="Throttle" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    <Label x:Name="throttleLabel" Text="0%" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="制御ループ負荷" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    <Label x:Name="loopStatsLabel" Text="-" FontSize="16" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </HorizontalStackLayout>
+        </Grid>
+    </Border>
+</ContentView>

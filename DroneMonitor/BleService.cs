@@ -5,6 +5,13 @@ using Plugin.BLE.Abstractions.EventArgs;
 using Plugin.BLE.Abstractions.Extensions;
 using System.Diagnostics;
 
+public enum BleConnectionState
+{
+    Disconnected,
+    Connecting,
+    Connected,
+}
+
 public class BleService
 {
     public IAdapter Adapter { get; }
@@ -12,6 +19,16 @@ public class BleService
     public IDevice? Device { get; private set; }
     public IService? Service { get; private set; }
     public bool IsConnected => Device != null && Adapter.ConnectedDevices.Contains(Device);
+
+    // 画面表示用の接続状態。変化は ConnectionStateChanged で通知する（UIスレッド以外から呼ばれることがある）
+    public BleConnectionState State { get; private set; } = BleConnectionState.Disconnected;
+    public event EventHandler? ConnectionStateChanged;
+    private void SetState(BleConnectionState state)
+    {
+        if (State == state) return;
+        State = state;
+        ConnectionStateChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     // 制御方法。変更時は ControlStateChanged で各画面に知らせる
     private byte _isControlBySelf = 0;
@@ -72,7 +89,23 @@ public class BleService
         return status == PermissionStatus.Granted;
 
     }
+    // 接続処理。状態を Connecting → Connected / Disconnected と通知する
     public async Task<bool> ConnectToDeviceAsync(string deviceName, CancellationToken? token = null)
+    {
+        SetState(BleConnectionState.Connecting);
+        bool ok = false;
+        try
+        {
+            ok = await ConnectCoreAsync(deviceName, token);
+        }
+        finally
+        {
+            SetState(ok ? BleConnectionState.Connected : BleConnectionState.Disconnected);
+        }
+        return ok;
+    }
+
+    private async Task<bool> ConnectCoreAsync(string deviceName, CancellationToken? token)
     {
         Device = null;
         Service = null;
@@ -170,6 +203,7 @@ public class BleService
             Device = null;
             Service = null;
             Characteristics.Clear();
+            SetState(BleConnectionState.Disconnected);
             UnexpectedDisconnected?.Invoke(this, e.Device);
         }
     }
@@ -278,6 +312,7 @@ public class BleService
             }
 
         }
+        SetState(BleConnectionState.Disconnected);
     }
 
     private void StartHeartbeat()
