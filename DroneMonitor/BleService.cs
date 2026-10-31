@@ -31,6 +31,11 @@ public class BleService
     // 書き込みと通知の開始・停止はこのロックで直列化する
     private readonly SemaphoreSlim _gattLock = new(1, 1);
 
+    // ハートビート。ドローン側は一定時間（1秒）コマンドが届かないと緊急動作に入るので、それより短い周期で送る
+    private const byte CMD_HEARTBEAT = 18;
+    private const int HEARTBEAT_INTERVAL_MS = 250;
+    private CancellationTokenSource? _heartbeatCts;
+
     // 複数Characteristicを保持するDictionaryを追加
     public Dictionary<string, ICharacteristic> Characteristics { get; } = new();
 
@@ -145,6 +150,7 @@ public class BleService
                 }
             }
 
+            StartHeartbeat();
             return true;
         }
         catch (OperationCanceledException)
@@ -160,6 +166,7 @@ public class BleService
     {
         if (Device != null && e.Device.Id == Device.Id)
         {
+            StopHeartbeat();
             Device = null;
             Service = null;
             Characteristics.Clear();
@@ -240,6 +247,7 @@ public class BleService
 
     public async Task DisconnectAsync()
     {
+        StopHeartbeat();
         if (IsConnected)
         {
             // ① 通知をすべて停止してイベント解除
@@ -269,6 +277,38 @@ public class BleService
                 // Android では切断中に例外が出ることがあるので無視
             }
 
+        }
+    }
+
+    private void StartHeartbeat()
+    {
+        StopHeartbeat();
+        _heartbeatCts = new CancellationTokenSource();
+        _ = HeartbeatLoopAsync(_heartbeatCts.Token);
+    }
+
+    private void StopHeartbeat()
+    {
+        _heartbeatCts?.Cancel();
+        _heartbeatCts = null;
+    }
+
+    // 接続中は HEARTBEAT_INTERVAL_MS ごとに生存通知を送る（書き込みキューを通すので他の送信とは重ならない）
+    private async Task HeartbeatLoopAsync(CancellationToken token)
+    {
+        byte seq = 0;
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(HEARTBEAT_INTERVAL_MS, token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            if (!IsConnected) continue;
+            await WriteAsync("Command", new byte[] { CMD_HEARTBEAT, seq++ });
         }
     }
 

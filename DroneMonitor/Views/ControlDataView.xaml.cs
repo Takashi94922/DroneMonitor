@@ -239,6 +239,12 @@ public partial class ControlDataView : ContentView
                 else if (sender == PIDUpdateButton)
                 {
                     var index = PIDPicker.SelectedIndex;
+                    // 送信先が未選択（-1）だと不正なコマンドになるので送らない
+                    if (index < 0)
+                    {
+                        await Application.Current?.MainPage?.DisplayAlert("入力エラー", "送信先（Pitch P など）を選択してください。", "OK");
+                        return;
+                    }
 
                     var valueBytes = new byte[6];
                     valueBytes[0] = (byte)(11 + index / 3); // コマンドID

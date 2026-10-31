@@ -29,8 +29,9 @@ namespace DroneMonitor.Views
         // 変化量しきい値（= 送信するために必要な最小 Δ）
         private const byte SEND_THRESHOLD = 1;
 
-        // 緊急停止時のスロットル[%]。0にすると墜落するので、降下できる程度の推力を残す
-        private const byte EMERGENCY_THROTTLE = 30;
+        // Tripボタン（操縦者による緊急停止）のスロットル[%]。推力を完全に切る
+        // ※通信途絶時の緊急動作はドローン側（emergency_action）で30%に下げる。こちらとは別扱い
+        private const byte TRIP_THROTTLE = 0;
 
 #if WINDOWS
         private WindowsGamepadHandler? _gamepadHandler;
@@ -344,21 +345,23 @@ namespace DroneMonitor.Views
 
         private async void EMTrip_Clicked(object sender, EventArgs e)
         {
-            // 定期送信の残りを打ち切らせ、緊急時のスロットルを即時に送る
-            // 推力を残して降下させるので、姿勢制御（制御モード）はそのまま継続する
+            // 定期送信の残りを打ち切らせ、スロットル0を即時に送る
+            // 姿勢制御（制御モード）は変更しない
             _emergencyStopping = true;
             try
             {
+                byte target = TRIP_THROTTLE;
+
                 // スライダーに設定（ValueChanged が発生して _newInputValues を更新する）
-                throttleSeekBar.Value = EMERGENCY_THROTTLE;
-                _newInputValues[throttleSeekBar] = EMERGENCY_THROTTLE;
+                throttleSeekBar.Value = target;
+                _newInputValues[throttleSeekBar] = target;
 
                 if (_bleService == null || !_bleService.IsConnected) return;
 
-                bool throttleOk = await _bleService.WriteAsync("Command", new byte[] { 0x00, EMERGENCY_THROTTLE });
-                if (throttleOk) _lastSentValues[throttleSeekBar] = EMERGENCY_THROTTLE; // 失敗時は定期送信で再送される
+                bool throttleOk = await _bleService.WriteAsync("Command", new byte[] { 0x00, target });
+                if (throttleOk) _lastSentValues[throttleSeekBar] = target; // 失敗時は定期送信で再送される
 
-                msgWindow.Text = throttleOk ? $"緊急停止: スロットル{EMERGENCY_THROTTLE}%を送信しました" : "緊急停止の送信に失敗しました";
+                msgWindow.Text = throttleOk ? $"緊急停止: スロットル{target}%を送信しました" : "緊急停止の送信に失敗しました";
             }
             catch (Exception ex)
             {

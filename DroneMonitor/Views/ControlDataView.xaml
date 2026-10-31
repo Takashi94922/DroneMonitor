@@ -21,12 +21,12 @@
                FontSize="12" />
         </HorizontalStackLayout>
 
-        <!-- 速度 -->
+        <!-- 角速度（ファームウェアの xhat[3..5] はジャイロ値 [rad/s]） -->
         <HorizontalStackLayout
                Grid.Row="0"
                Grid.Column="1" >
             <Label x:Name="velocityTextView"
-               Text="Velocity"
+               Text="Gyro [rad/s] "
                HorizontalOptions="Start"
                FontSize="12" />
             <Label x:Name="velocityValueLabel"
