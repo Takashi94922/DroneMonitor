@@ -5,6 +5,9 @@ using System.Globalization;
 
 namespace DroneMonitor.Views;
 
+// 台の試験の状態。Tag は "none" / "pitch" / "roll"
+public record RigMode(string Tag, string Name);
+
 // ゲイン設定画面（PID ゲイン・KC ゲインを表で入力して送信）
 public partial class GainView : ContentView
 {
@@ -41,6 +44,16 @@ public partial class GainView : ContentView
     private readonly HashSet<int> _gainReadReceived = new();
     private bool _gainReading;
 
+    // 台の試験。回す軸以外のゲインを0にする。切り替え前のゲインを控えておき、「なし」で送り直す
+    private static readonly RigMode[] RigModes = { new("pitch", "ピッチ"), new("roll", "ロール") };
+    private static readonly RigMode RigNone = new("none", "なし");
+    public event EventHandler<RigMode>? RigModeChanged;
+    private int _rigAxis = -1;          // -1: なし、0: ピッチ、1: ロール
+    private float[]? _rigSaved;         // 切り替え前の PID ゲイン（pitch roll yaw の Kp Ki Kd）
+    private bool _rigBusy;
+    private TaskCompletionSource<float[]>? _pidReadTcs;
+    private const int PID_READ_TIMEOUT_MS = 2000;
+
     private static readonly Color ChangedColor = Colors.LightYellow;
     private static readonly Color InvalidColor = Colors.MistyRose;
 
@@ -55,6 +68,8 @@ public partial class GainView : ContentView
         for (int row = 0; row < KcRows; row++)
             for (int col = 0; col < KcCols; col++)
                 _kcEntries[row * KcCols + col] = AddEntryCell(kcGrid, row + 1, col + 1, KcDefaults[row * KcCols + col]);
+
+        UpdateRigButtons();
     }
 
     public void SetBleService(BleService bleService)
@@ -160,7 +175,12 @@ public partial class GainView : ContentView
     {
         int kind = data[1];
         if (kind == 0 && data.Length >= 2 + sizeof(float) * _pidEntries.Length)
+        {
             FillEntries(_pidEntries, 0, _pidEntries.Length, data);
+            var values = new float[_pidEntries.Length];
+            for (int i = 0; i < values.Length; i++) values[i] = BitConverter.ToSingle(data, 2 + i * sizeof(float));
+            _pidReadTcs?.TrySetResult(values);
+        }
         else if (kind >= 1 && kind <= KcRows && data.Length >= 2 + sizeof(float) * KcCols)
             FillEntries(_kcEntries, (kind - 1) * KcCols, KcCols, data);
         else
@@ -180,6 +200,130 @@ public partial class GainView : ContentView
             entry.Text = FormatValue(BitConverter.ToSingle(data, 2 + i * sizeof(float)));
             MarkSent(entry);
         }
+    }
+
+    // ---- 台の試験 ----
+
+    private async void OnRigClicked(object? sender, EventArgs e)
+    {
+        if (_rigBusy) return;
+        int axis = sender == rigPitchButton ? 0 : sender == rigRollButton ? 1 : -1;
+        if (axis == _rigAxis) return;
+        if (!await EnsureConnectedAsync()) return;
+
+        _rigBusy = true;
+        UpdateRigButtons();
+        try
+        {
+            // いまの試験を解除して、0にしていた軸のゲインを元に戻す
+            if (_rigAxis >= 0 && _rigSaved != null)
+            {
+                SetRigStatus("元のゲインに戻しています…", Colors.Gray);
+                for (int a = 0; a < PidAxes; a++)
+                {
+                    if (a == _rigAxis) continue;
+                    for (int t = 0; t < PidTerms; t++)
+                    {
+                        if (!await SendPidValueAsync(a, t, _rigSaved[a * PidTerms + t]))
+                        {
+                            SetRigStatus("元に戻す途中で送信に失敗しました。もう一度押してください", Colors.Red);
+                            return;
+                        }
+                    }
+                }
+                SetRigMode(-1);
+            }
+            if (axis < 0)
+            {
+                SetRigStatus("元のゲインに戻しました", Colors.Green);
+                return;
+            }
+
+            // 元のゲインをドローンから読んで控え、回す軸以外を0にする
+            SetRigStatus("ドローンのゲインを読み込んでいます…", Colors.Gray);
+            var saved = await ReadPidFromDroneAsync();
+            if (saved == null)
+            {
+                SetRigStatus("ドローンからゲインを読み込めませんでした", Colors.Red);
+                return;
+            }
+            _rigSaved = saved;
+            SetRigMode(axis); // 途中で失敗しても「なし」で戻せるよう、先に試験中にする
+            for (int a = 0; a < PidAxes; a++)
+            {
+                if (a == axis) continue;
+                for (int t = 0; t < PidTerms; t++)
+                {
+                    if (!await SendPidValueAsync(a, t, 0.0f))
+                    {
+                        SetRigStatus("0にする途中で送信に失敗しました。「なし」で元に戻してください", Colors.Red);
+                        return;
+                    }
+                }
+            }
+            SetRigStatus($"{RigModes[axis].Name}以外の PID ゲインを0にしました", Colors.Green);
+        }
+        finally
+        {
+            _rigBusy = false;
+            UpdateRigButtons();
+        }
+    }
+
+    private void SetRigMode(int axis)
+    {
+        _rigAxis = axis;
+        RigModeChanged?.Invoke(this, axis < 0 ? RigNone : RigModes[axis]);
+    }
+
+    private void SetRigStatus(string message, Color color)
+    {
+        rigStatusLabel.Text = message;
+        rigStatusLabel.TextColor = color;
+    }
+
+    // 選択中の試験のボタンを強調する。切り替え中は押せなくする
+    private void UpdateRigButtons()
+    {
+        var buttons = new[] { (rigNoneButton, -1), (rigPitchButton, 0), (rigRollButton, 1) };
+        foreach (var (button, axis) in buttons)
+        {
+            bool selected = axis == _rigAxis;
+            button.IsEnabled = !_rigBusy;
+            button.BackgroundColor = selected ? (axis < 0 ? Colors.DimGray : Colors.DarkOrange) : Colors.LightGray;
+            button.TextColor = selected ? Colors.White : Colors.Black;
+            button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
+        }
+    }
+
+    // ドローンの PID ゲイン（9個）を読む。応答がなければ null
+    private async Task<float[]?> ReadPidFromDroneAsync()
+    {
+        _pidReadTcs = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            if (!await _bleService!.WriteAsync("Command", new byte[] { CMD_GAIN_READ, 0 })) return null;
+            var done = await Task.WhenAny(_pidReadTcs.Task, Task.Delay(PID_READ_TIMEOUT_MS));
+            return done == _pidReadTcs.Task ? _pidReadTcs.Task.Result : null;
+        }
+        finally
+        {
+            _pidReadTcs = null;
+        }
+    }
+
+    // PID ゲインを1項目送り、表の値も送った値にそろえる
+    private async Task<bool> SendPidValueAsync(int axis, int term, float value)
+    {
+        var buf = new byte[6];
+        buf[0] = (byte)(11 + axis); // 11:Pitch 12:Roll 13:Yaw
+        buf[1] = (byte)term;        // 0:P 1:I 2:D
+        Array.Copy(BitConverter.GetBytes(value), 0, buf, 2, 4);
+        if (!await _bleService!.WriteAsync("Command", buf)) return false;
+        var entry = _pidEntries[axis * PidTerms + term];
+        entry.Text = FormatValue(value);
+        MarkSent(entry);
+        return true;
     }
 
     // ---- PID ----
@@ -221,12 +365,7 @@ public partial class GainView : ContentView
         {
             foreach (var (index, value) in targets)
             {
-                var buf = new byte[6];
-                buf[0] = (byte)(11 + index / PidTerms); // 11:Pitch 12:Roll 13:Yaw
-                buf[1] = (byte)(index % PidTerms);      // 0:P 1:I 2:D
-                Array.Copy(BitConverter.GetBytes(value), 0, buf, 2, 4);
-                if (!await _bleService!.WriteAsync("Command", buf)) break;
-                MarkSent(_pidEntries[index]);
+                if (!await SendPidValueAsync(index / PidTerms, index % PidTerms, value)) break;
                 sent++;
             }
         }

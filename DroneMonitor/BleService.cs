@@ -7,6 +7,7 @@ using System.Diagnostics;
 
 // ドローン側の状態（Command の通知 [20, mode, flags, 0, throttle, target pitch/roll/yaw] を読んだもの）
 public record DroneStatus(byte Mode, bool Failsafe, bool Calibrating, bool HeartbeatArmed, bool MagInUse,
+                          bool LogRecording, bool LogSending,
                           float Throttle, float PitchTarget, float RollTarget, float YawTarget);
 
 public enum BleConnectionState
@@ -76,6 +77,7 @@ public class BleService
     private readonly Guid CHAR_UUID_ContGain_Upd = To128BitUuid(0xFF04);
     private readonly Guid CHAR_UUID_Command = To128BitUuid(0xFF05);
     private readonly Guid CHAR_UUID_LoopStats_Telem = To128BitUuid(0xFF07);
+    private readonly Guid CHAR_UUID_Log_Telem = To128BitUuid(0xFF08);
 
     public event EventHandler<byte[]>? NotificationReceived;
     public event EventHandler<IDevice>? UnexpectedDisconnected;
@@ -169,7 +171,8 @@ public class BleService
                 CHAR_UUID_contU_TelemWrite,
                 CHAR_UUID_ContGain_Upd,
                 CHAR_UUID_Command,
-                CHAR_UUID_LoopStats_Telem
+                CHAR_UUID_LoopStats_Telem,
+                CHAR_UUID_Log_Telem
             };
             var keys = new[]
             {
@@ -178,7 +181,8 @@ public class BleService
                 "contU_TelemWrite",
                 "ContGain_Upd",
                 "Command",
-                "LoopStats_Telem" // 古いファームウェアには無いので null なら登録されない
+                "LoopStats_Telem", // 古いファームウェアには無いので null なら登録されない
+                "Log_Telem"        // 制御周期の記録（同上）
             };
 
             var tasks = uuids.Select(u => Service.GetCharacteristicAsync(u));
@@ -379,6 +383,8 @@ public class BleService
             Calibrating: (flags & 0x02) != 0,
             HeartbeatArmed: (flags & 0x04) != 0,
             MagInUse: (flags & 0x08) != 0,
+            LogRecording: (flags & 0x10) != 0,
+            LogSending: (flags & 0x20) != 0,
             Throttle: BitConverter.ToSingle(data, 4),
             PitchTarget: BitConverter.ToSingle(data, 8),
             RollTarget: BitConverter.ToSingle(data, 12),

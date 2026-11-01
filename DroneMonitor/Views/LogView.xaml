@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DroneMonitor.Views.LogView">
+    <ScrollView>
+        <VerticalStackLayout Padding="12" Spacing="12">
+            <!-- 制御周期の記録。ドローンのRAMにためてから、まとめて受け取って CSV に保存する -->
+            <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="制御周期の記録" FontAttributes="Bold" />
+                    <Label Text="ドローンが制御周期（4 ms）で目標角・姿勢角・角速度・PID の各項・サーボ出力を記録し、終わったらまとめて送ります。受け取ったら CSV に保存します。"
+                           FontSize="12" TextColor="Gray" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="記録時間 [秒]" VerticalOptions="Center" />
+                        <Entry x:Name="secondsEntry" Text="4" Keyboard="Numeric" WidthRequest="80" HorizontalTextAlignment="End" />
+                        <Label Text="（1〜10。メモリが足りなければドローン側で短くなります）" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="メモ" VerticalOptions="Center" />
+                        <Entry x:Name="memoEntry" WidthRequest="420" Placeholder="例: Kp=6 Kd=0.5、手で10°傾けて離す" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="台の試験" VerticalOptions="Center" />
+                        <Label x:Name="rigLabel" Text="なし" FontAttributes="Bold" VerticalOptions="Center" />
+                        <Label Text="（Gains タブで切り替え）" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <!-- 記録中に目標角をステップ状に変える（台の試験で選んだ軸）。手で傾けて放す代わり -->
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="stepCheck" VerticalOptions="Center" />
+                        <Label Text="目標角のステップ" VerticalOptions="Center" />
+                        <Label Text="振幅 [°]" VerticalOptions="Center" />
+                        <Entry x:Name="stepAmpEntry" Text="10" Keyboard="Numeric" WidthRequest="60" HorizontalTextAlignment="End" />
+                        <Label Text="開始 [秒]" VerticalOptions="Center" />
+                        <Entry x:Name="stepOnEntry" Text="1.0" Keyboard="Numeric" WidthRequest="60" HorizontalTextAlignment="End" />
+                        <Label Text="戻す [秒]" VerticalOptions="Center" />
+                        <Entry x:Name="stepOffEntry" Text="4.0" Keyboard="Numeric" WidthRequest="60" HorizontalTextAlignment="End" />
+                    </HorizontalStackLayout>
+                    <Label Text="記録開始から「開始」で目標を今の値＋振幅にし、「戻す」で元に戻します。軸は台の試験で選んだ軸です。"
+                           FontSize="12" TextColor="Gray" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="startButton" Text="記録開始" Clicked="OnStartClicked" />
+                        <Label x:Name="statusLabel" Text="" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <ProgressBar x:Name="progressBar" Progress="0" />
+                    <Label x:Name="savedPathLabel" Text="" FontSize="12" LineBreakMode="CharacterWrap" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="openFolderButton" Text="保存フォルダを開く" Clicked="OnOpenFolderClicked" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentView>

@@ -16,6 +16,9 @@
                 </HorizontalStackLayout>
                 <Label x:Name="failsafeLabel" Text="緊急動作中" FontSize="16" FontAttributes="Bold" TextColor="Red"
                        IsVisible="False" VerticalOptions="Center" />
+                <!-- 台の試験中（回す軸以外のゲインを0にしている）。戻し忘れないよう常に見えるところに出す -->
+                <Label x:Name="rigModeLabel" Text="" FontSize="16" FontAttributes="Bold" TextColor="DarkOrange"
+                       IsVisible="False" VerticalOptions="Center" />
             </HorizontalStackLayout>
 
             <!-- TRIP（緊急停止）。どの画面からでも押せるよう状態バーの中央に置く -->

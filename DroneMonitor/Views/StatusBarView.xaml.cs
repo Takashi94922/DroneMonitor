@@ -29,6 +29,13 @@ public partial class StatusBarView : ContentView
         TripRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    // 台の試験の表示。null なら消す
+    public void SetRigMode(string? axisName)
+    {
+        rigModeLabel.IsVisible = axisName != null;
+        rigModeLabel.Text = axisName != null ? $"台の試験: {axisName}" : "";
+    }
+
     // 操縦画面のスロットル指令値を表示する
     public void SetThrottle(byte percent)
     {

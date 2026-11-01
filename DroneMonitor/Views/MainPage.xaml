@@ -7,7 +7,7 @@
     <!--
         画面構成
         上: 状態バー（中央に TRIP）
-        左: Flight（操縦）/ Gains（ゲイン設定）を切り替える
+        左: Flight（操縦）/ Gains（ゲイン設定）/ Log（制御周期の記録）を切り替える
         右: 制御モード・姿勢・センサ・制御入力の共通パネル（常に表示）
     -->
     <Grid RowDefinitions="Auto,*" ColumnDefinitions="3*,2*" Padding="8" RowSpacing="8" ColumnSpacing="8">
@@ -17,11 +17,13 @@
             <HorizontalStackLayout Grid.Row="0" Spacing="8" Padding="12,0">
                 <Button x:Name="flightTabButton" Text="Flight" Clicked="OnTabClicked" MinimumWidthRequest="120" />
                 <Button x:Name="gainsTabButton" Text="Gains" Clicked="OnTabClicked" MinimumWidthRequest="120" />
+                <Button x:Name="logTabButton" Text="Log" Clicked="OnTabClicked" MinimumWidthRequest="120" />
             </HorizontalStackLayout>
             <!-- 切り替えても入力内容や送信状態を失わないよう、両方を置いて表示だけ切り替える -->
             <Grid Grid.Row="1">
                 <views:HomeView x:Name="homeView" />
                 <views:GainView x:Name="gainView" IsVisible="False" />
+                <views:LogView x:Name="logView" IsVisible="False" />
             </Grid>
         </Grid>
 

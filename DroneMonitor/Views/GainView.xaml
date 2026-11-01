@@ -11,6 +11,21 @@
                 <Label x:Name="gainReadStatusLabel" Text="" VerticalOptions="Center" />
             </HorizontalStackLayout>
 
+            <!-- 台の試験（ジンバル台で1軸だけ回す）。回す軸以外の PID ゲインを0にし、「なし」で元に戻す -->
+            <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="台の試験" FontAttributes="Bold" />
+                    <Label Text="ジンバル台で1軸だけ回すときに使います。選んだ軸以外（ヨーを含む）の Kp・Ki・Kd を0にして送り、「なし」に戻すと元の値を送り直します。元の値は切り替えるときにドローンから読み込みます。試験中は0にした軸の値を表で変えないでください。"
+                           FontSize="12" TextColor="Gray" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="rigNoneButton" Text="なし" Clicked="OnRigClicked" MinimumWidthRequest="90" />
+                        <Button x:Name="rigPitchButton" Text="ピッチ" Clicked="OnRigClicked" MinimumWidthRequest="90" />
+                        <Button x:Name="rigRollButton" Text="ロール" Clicked="OnRigClicked" MinimumWidthRequest="90" />
+                        <Label x:Name="rigStatusLabel" Text="" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
             <!-- PID ゲイン（3軸 × P/I/D） -->
             <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
                 <VerticalStackLayout Spacing="8">
