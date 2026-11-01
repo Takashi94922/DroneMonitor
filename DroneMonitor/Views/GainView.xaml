@@ -49,6 +49,34 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- スロットルによるゲインの切り替え（舵の効き b ∝ スロットル − b が0のスロットル） -->
+            <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="スロットルによるゲインの切り替え" FontAttributes="Bold" />
+                    <Label Text="選んだ軸の Kp・Ki・Kd に、倍率 (基準 − b0) ÷ (スロットル − b0) を掛けます。上の表のゲインは基準スロットルでの値になります。基準以下では倍率 1（下限 0.2）。b0 は舵の効きが0になるスロットルで、ロールの台試験の当てはめは 7.1%。"
+                           FontSize="12" TextColor="Gray" />
+                    <HorizontalStackLayout Spacing="16">
+                        <HorizontalStackLayout Spacing="2">
+                            <CheckBox x:Name="schedPitchCheck" CheckedChanged="OnSchedInputChanged" />
+                            <Label Text="Pitch" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="2">
+                            <CheckBox x:Name="schedRollCheck" CheckedChanged="OnSchedInputChanged" />
+                            <Label Text="Roll" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Label Text="基準 [%]" VerticalOptions="Center" />
+                        <Entry x:Name="schedRefEntry" Text="30" Keyboard="Numeric" WidthRequest="70" HorizontalTextAlignment="End" TextChanged="OnSchedInputChanged" />
+                        <Label Text="b0 [%]" VerticalOptions="Center" />
+                        <Entry x:Name="schedZeroEntry" Text="7.1" Keyboard="Numeric" WidthRequest="70" HorizontalTextAlignment="End" TextChanged="OnSchedInputChanged" />
+                    </HorizontalStackLayout>
+                    <Label x:Name="schedPreviewLabel" Text="" FontSize="12" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="schedSendButton" Text="切り替えを送信" Clicked="OnSchedSendClicked" />
+                        <Label x:Name="schedStatusLabel" Text="" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
             <!-- KC（状態フィードバック）ゲイン 5×6 -->
             <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
                 <VerticalStackLayout Spacing="8">

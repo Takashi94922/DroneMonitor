@@ -44,6 +44,8 @@ public partial class LogView : ContentView
     private byte _controlMode;
     private readonly float[] _gains = new float[9];
     private readonly float[] _targets = new float[3];
+    // スロットルによるゲインの切り替え（ヘッダの版2から。null なら古いファームウェアで不明）
+    private (byte mask, float tRef, float tZero)? _sched;
     private byte[] _data = Array.Empty<byte>();
     private bool[] _received = Array.Empty<bool>();
     private int _receivedCount;
@@ -227,6 +229,9 @@ public partial class LogView : ContentView
                 _controlMode = data[7];
                 for (int i = 0; i < 9; i++) _gains[i] = BitConverter.ToSingle(data, 8 + i * 4);
                 for (int i = 0; i < 3; i++) _targets[i] = BitConverter.ToSingle(data, 44 + i * 4);
+                _sched = data.Length >= 56 + 9
+                    ? (data[56], BitConverter.ToSingle(data, 57), BitConverter.ToSingle(data, 61))
+                    : null;
                 if (!_headerReceived || count != _sampleCount)
                 {
                     _sampleCount = count;
@@ -346,6 +351,18 @@ public partial class LogView : ContentView
         sb.AppendLine($"# pid_roll: Kp={F(_gains[3])} Ki={F(_gains[4])} Kd={F(_gains[5])}");
         sb.AppendLine($"# pid_yaw: Kp={F(_gains[6])} Ki={F(_gains[7])} Kd={F(_gains[8])}");
         sb.AppendLine($"# target_rad: pitch={F(_targets[0])} roll={F(_targets[1])} yaw={F(_targets[2])}");
+        // ゲインの切り替えが有効なら、上の pid_* は基準スロットルでの値。実際のゲインは倍率を掛けたもの
+        if (_sched is { } s)
+        {
+            var axes = new[] { (1, "pitch"), (2, "roll"), (4, "yaw") }.Where(a => (s.mask & a.Item1) != 0).Select(a => a.Item2).ToArray();
+            sb.AppendLine(axes.Length == 0
+                ? "# gain_sched: off"
+                : $"# gain_sched: {string.Join("+", axes)} t_ref={F(s.tRef)} t_zero={F(s.tZero)}");
+        }
+        else
+        {
+            sb.AppendLine("# gain_sched: unknown");
+        }
 
         sb.Append("t_s");
         foreach (var c in Columns) sb.Append(',').Append(c.Name);

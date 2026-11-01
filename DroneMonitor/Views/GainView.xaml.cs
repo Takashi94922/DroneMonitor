@@ -37,10 +37,17 @@ public partial class GainView : ContentView
     private readonly Entry[] _kcEntries = new Entry[KcRows * KcCols];
     private readonly Dictionary<Entry, string> _lastSentText = new();
 
-    // ゲインの読み戻し。Command の通知で [21, 種類, float...] が返る（種類 0=PID の9個、1〜5=KC の各行6個）
+    // ゲインの読み戻し。Command の通知で [21, 種類, ...] が返る
+    // （種類 0=PID の float 9個、1〜5=KC の各行 float 6個、6=ゲインの切り替え [軸 u8, 基準 float, b0 float]）
     private const byte CMD_GAIN_READ = 21;
+    private const byte GAIN_KIND_SCHED = 6;
     private const int GAIN_READ_TIMEOUT_MS = 3000;
-    private const int GainReadParts = 1 + KcRows;
+    private const int GainReadParts = 1 + KcRows + 1;
+
+    // スロットルによるゲインの切り替え [25, 軸 u8（bit0 pitch, bit1 roll）, 基準[%] float, b0[%] float]
+    private const byte CMD_GAIN_SCHED = 25;
+    private static readonly int[] SchedPreviewThrottles = { 40, 50, 55, 60 };
+    private (byte mask, float tRef, float tZero)? _schedOnDrone; // 最後に読み戻したドローンの設定
     private readonly HashSet<int> _gainReadReceived = new();
     private bool _gainReading;
 
@@ -70,6 +77,7 @@ public partial class GainView : ContentView
                 _kcEntries[row * KcCols + col] = AddEntryCell(kcGrid, row + 1, col + 1, KcDefaults[row * KcCols + col]);
 
         UpdateRigButtons();
+        UpdateSchedPreview();
     }
 
     public void SetBleService(BleService bleService)
@@ -183,6 +191,8 @@ public partial class GainView : ContentView
         }
         else if (kind >= 1 && kind <= KcRows && data.Length >= 2 + sizeof(float) * KcCols)
             FillEntries(_kcEntries, (kind - 1) * KcCols, KcCols, data);
+        else if (kind == GAIN_KIND_SCHED && data.Length >= 3 + sizeof(float) * 2)
+            ApplySchedReadback(data[2], BitConverter.ToSingle(data, 3), BitConverter.ToSingle(data, 7));
         else
             return;
 
@@ -378,6 +388,78 @@ public partial class GainView : ContentView
         pidStatusLabel.Text = allOk ? $"{sent} 項目を送信しました" : $"送信失敗（{sent}/{targets.Count} 項目まで送信）";
         pidStatusLabel.TextColor = allOk ? Colors.Green : Colors.Red;
         Debug.WriteLine($"PIDゲイン送信: {sent}/{targets.Count}");
+    }
+
+    // ---- スロットルによるゲインの切り替え ----
+
+    private void ApplySchedReadback(byte mask, float tRef, float tZero)
+    {
+        _schedOnDrone = (mask, tRef, tZero);
+        schedPitchCheck.IsChecked = (mask & 1) != 0;
+        schedRollCheck.IsChecked = (mask & 2) != 0;
+        schedRefEntry.Text = FormatValue(tRef);
+        schedZeroEntry.Text = FormatValue(tZero);
+        UpdateSchedPreview();
+    }
+
+    private byte SchedMask() => (byte)((schedPitchCheck.IsChecked ? 1 : 0) | (schedRollCheck.IsChecked ? 2 : 0));
+
+    // 入力を読む。基準が b0 より 1% 以上大きくなければ読めないとする（ファームウェアも受け付けない）
+    private bool TryReadSched(out float tRef, out float tZero) =>
+        TryParseValue(schedRefEntry.Text?.Trim(), out tRef) & TryParseValue(schedZeroEntry.Text?.Trim(), out tZero)
+        && tRef > tZero + 1 && tRef <= 100 && tZero >= 0;
+
+    private void OnSchedInputChanged(object? sender, EventArgs e) => UpdateSchedPreview();
+
+    // 倍率の見込み（ファームウェアの GainSchedule::scale と同じ式）と、ドローンの設定との違いを示す
+    private void UpdateSchedPreview()
+    {
+        if (schedPreviewLabel == null) return; // InitializeComponent の途中
+        if (!TryReadSched(out var tRef, out var tZero))
+        {
+            schedPreviewLabel.Text = "基準は b0 より大きく、100 以下にしてください";
+            schedPreviewLabel.TextColor = Colors.Red;
+            return;
+        }
+        byte mask = SchedMask();
+        string scales = string.Join("、", SchedPreviewThrottles.Select(t =>
+        {
+            float s = t <= tRef ? 1f : Math.Max(0.2f, (tRef - tZero) / (t - tZero));
+            return $"{t}% ×{s:0.00}";
+        }));
+        bool changed = _schedOnDrone is not { } d || d.mask != mask || d.tRef != tRef || d.tZero != tZero;
+        schedPreviewLabel.Text = (mask == 0 ? "切り替えなし" : $"倍率: {scales}") + (changed ? "（ドローンの設定と違います）" : "");
+        schedPreviewLabel.TextColor = changed ? Colors.DarkOrange : Colors.Gray;
+    }
+
+    private async void OnSchedSendClicked(object? sender, EventArgs e)
+    {
+        if (!TryReadSched(out var tRef, out var tZero))
+        {
+            schedStatusLabel.Text = "入力を直してください";
+            schedStatusLabel.TextColor = Colors.Red;
+            return;
+        }
+        if (!await EnsureConnectedAsync()) return;
+
+        var buf = new byte[2 + sizeof(float) * 2];
+        buf[0] = CMD_GAIN_SCHED;
+        buf[1] = SchedMask();
+        BitConverter.GetBytes(tRef).CopyTo(buf, 2);
+        BitConverter.GetBytes(tZero).CopyTo(buf, 6);
+        schedSendButton.IsEnabled = false;
+        bool ok;
+        try
+        {
+            ok = await _bleService!.WriteAsync("Command", buf);
+        }
+        finally
+        {
+            schedSendButton.IsEnabled = true;
+        }
+        // ドローンは受け取ると全ゲインを読み戻して送ってくる。届けば「ドローンの設定と違います」が消える
+        schedStatusLabel.Text = ok ? "送信しました" : "送信失敗";
+        schedStatusLabel.TextColor = ok ? Colors.Green : Colors.Red;
     }
 
     // ---- KC ----
