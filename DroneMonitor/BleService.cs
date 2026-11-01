@@ -6,7 +6,7 @@ using Plugin.BLE.Abstractions.Extensions;
 using System.Diagnostics;
 
 // ドローン側の状態（Command の通知 [20, mode, flags, 0, throttle, target pitch/roll/yaw] を読んだもの）
-public record DroneStatus(byte Mode, bool Failsafe, bool Calibrating, bool HeartbeatArmed,
+public record DroneStatus(byte Mode, bool Failsafe, bool Calibrating, bool HeartbeatArmed, bool MagInUse,
                           float Throttle, float PitchTarget, float RollTarget, float YawTarget);
 
 public enum BleConnectionState
@@ -378,6 +378,7 @@ public class BleService
             Failsafe: (flags & 0x01) != 0,
             Calibrating: (flags & 0x02) != 0,
             HeartbeatArmed: (flags & 0x04) != 0,
+            MagInUse: (flags & 0x08) != 0,
             Throttle: BitConverter.ToSingle(data, 4),
             PitchTarget: BitConverter.ToSingle(data, 8),
             RollTarget: BitConverter.ToSingle(data, 12),

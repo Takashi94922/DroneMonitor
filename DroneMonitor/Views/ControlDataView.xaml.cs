@@ -130,6 +130,8 @@ public partial class ControlDataView : ContentView
             const float r2d = 180.0f / MathF.PI;
             var text = $"機体側: スロットル {status.Throttle:F0}%　目標 Pitch {status.PitchTarget * r2d:F1}° / Roll {status.RollTarget * r2d:F1}° / Yaw {status.YawTarget * r2d:F1}°";
             if (status.Calibrating) text += "　ジャイロ校正中";
+            // モーターが回っている間（と止めた直後1秒）は地磁気を使わず6軸で推定している
+            text += status.MagInUse ? "　地磁気: 使用" : "　地磁気: 不使用（モーター回転中）";
             if (status.Failsafe) text += "　緊急動作中";
             droneStateLabel.Text = text;
             droneStateLabel.TextColor = status.Failsafe ? Colors.Red : Colors.Gray;
