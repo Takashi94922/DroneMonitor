@@ -22,6 +22,7 @@ public partial class ControlDataView : ContentView
     // 表の数値セル（XAMLで同じ形のLabelを並べる代わりにコードで生成する）
     private readonly Label[] _accelLabels = new Label[3];
     private readonly Label[] _gyroLabels = new Label[3];
+    private readonly Label[] _magLabels = new Label[3];
     private readonly Label[] _ctrlLabels = new Label[5];
 
     public ControlDataView()
@@ -39,6 +40,7 @@ public partial class ControlDataView : ContentView
         {
             _accelLabels[i] = AddValueCell(sensorGrid, 2, i + 1, LayoutOptions.End);
             _gyroLabels[i] = AddValueCell(sensorGrid, 3, i + 1, LayoutOptions.End);
+            _magLabels[i] = AddValueCell(sensorGrid, 4, i + 1, LayoutOptions.End);
         }
         for (int i = 0; i < 5; i++)
         {
@@ -65,8 +67,8 @@ public partial class ControlDataView : ContentView
         if (_bleService == null) return;
 
         // StartNotificationAsync は BleService 側でキーごとに通知開始する実装なので await してログ出力
-        var ok1 = await _bleService.StartNotificationAsync("Xhat_Telem");
-        Debug.WriteLine($"Xhat_Telem通知開始: {ok1}");
+        var ok1 = await _bleService.StartNotificationAsync("Sensor_Telem");
+        Debug.WriteLine($"Sensor_Telem通知開始: {ok1}");
         var ok2 = await _bleService.StartNotificationAsync("contU_TelemWrite");
         Debug.WriteLine($"contU_TelemWrite通知開始: {ok2}");
         var ok3 = await _bleService.StartNotificationAsync("PRY_Telem");
@@ -87,12 +89,14 @@ public partial class ControlDataView : ContentView
             _bleService.NotificationReceived -= OnNotificationReceived;
             _bleService.ControlStateChanged -= OnStateChanged;
             _bleService.ConnectionStateChanged -= OnStateChanged;
+            _bleService.DroneStatusChanged -= OnDroneStatusChanged;
         }
 
         _bleService = bleService;
         _bleService.NotificationReceived += OnNotificationReceived;
         _bleService.ControlStateChanged += OnStateChanged;
         _bleService.ConnectionStateChanged += OnStateChanged;
+        _bleService.DroneStatusChanged += OnDroneStatusChanged;
 
         if (_bleService.IsConnected)
         {
@@ -115,6 +119,21 @@ public partial class ControlDataView : ContentView
             button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
         }
         gyroCalibButton.IsEnabled = connected && !_gyroCalibrating;
+        if (!connected) droneStateLabel.Text = "";
+    }
+
+    // ドローン側の状態を表示する（モードは BleService が IsControlBySelf に反映済み）
+    private void OnDroneStatusChanged(object? sender, DroneStatus status)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            const float r2d = 180.0f / MathF.PI;
+            var text = $"機体側: スロットル {status.Throttle:F0}%　目標 Pitch {status.PitchTarget * r2d:F1}° / Roll {status.RollTarget * r2d:F1}° / Yaw {status.YawTarget * r2d:F1}°";
+            if (status.Calibrating) text += "　ジャイロ校正中";
+            if (status.Failsafe) text += "　緊急動作中";
+            droneStateLabel.Text = text;
+            droneStateLabel.TextColor = status.Failsafe ? Colors.Red : Colors.Gray;
+        });
     }
 
     // 他の画面（緊急停止など）や接続状態の変化でボタン表示を合わせる
@@ -206,16 +225,19 @@ public partial class ControlDataView : ContentView
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            if (key == "Xhat_Telem" && data.Length >= 24)
+            if (key == "Sensor_Telem" && data.Length >= 24)
             {
-                float[] floats = new float[6];
-                for (int i = 0; i < 6; i++)
+                // 加速度・ジャイロ（6個）。新しいファームウェアは続けて地磁気（3個）も送る
+                int count = Math.Min(data.Length / 4, 9);
+                float[] floats = new float[count];
+                for (int i = 0; i < count; i++)
                     floats[i] = BitConverter.ToSingle(data, i * 4);
 
                 for (int i = 0; i < 3; i++)
                 {
                     _accelLabels[i].Text = floats[i].ToString("F2");
                     _gyroLabels[i].Text = floats[i + 3].ToString("F2");
+                    if (count >= 9) _magLabels[i].Text = floats[i + 6].ToString("F3");
                 }
             }
             else if (key == "contU_TelemWrite" && data.Length >= 20)
@@ -252,6 +274,7 @@ public partial class ControlDataView : ContentView
             _bleService.NotificationReceived -= OnNotificationReceived;
             _bleService.ControlStateChanged -= OnStateChanged;
             _bleService.ConnectionStateChanged -= OnStateChanged;
+            _bleService.DroneStatusChanged -= OnDroneStatusChanged;
         }
     }
 }

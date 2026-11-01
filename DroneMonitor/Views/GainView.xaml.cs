@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using Plugin.BLE.Abstractions.Contracts;
+using Microsoft.Maui.ApplicationModel;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace DroneMonitor.Views;
@@ -32,6 +34,13 @@ public partial class GainView : ContentView
     private readonly Entry[] _kcEntries = new Entry[KcRows * KcCols];
     private readonly Dictionary<Entry, string> _lastSentText = new();
 
+    // ゲインの読み戻し。Command の通知で [21, 種類, float...] が返る（種類 0=PID の9個、1〜5=KC の各行6個）
+    private const byte CMD_GAIN_READ = 21;
+    private const int GAIN_READ_TIMEOUT_MS = 3000;
+    private const int GainReadParts = 1 + KcRows;
+    private readonly HashSet<int> _gainReadReceived = new();
+    private bool _gainReading;
+
     private static readonly Color ChangedColor = Colors.LightYellow;
     private static readonly Color InvalidColor = Colors.MistyRose;
 
@@ -50,7 +59,12 @@ public partial class GainView : ContentView
 
     public void SetBleService(BleService bleService)
     {
+        if (_bleService != null)
+        {
+            _bleService.NotificationReceived -= OnNotificationReceived;
+        }
         _bleService = bleService;
+        _bleService.NotificationReceived += OnNotificationReceived;
     }
 
     private Entry AddEntryCell(Grid grid, int row, int column, float defaultValue)
@@ -100,6 +114,72 @@ public partial class GainView : ContentView
         if (_bleService != null && _bleService.IsConnected) return true;
         await Application.Current?.MainPage?.DisplayAlert("BLE接続エラー", "BLEが接続されていません。接続を確認してください。", "OK");
         return false;
+    }
+
+    // ---- ドローンからの読み込み ----
+
+    private async void OnGainReadClicked(object? sender, EventArgs e)
+    {
+        if (!await EnsureConnectedAsync()) return;
+
+        _gainReadReceived.Clear();
+        _gainReading = true;
+        gainReadButton.IsEnabled = false;
+        gainReadStatusLabel.Text = "読み込み中…";
+        gainReadStatusLabel.TextColor = Colors.Gray;
+
+        if (!await _bleService!.WriteAsync("Command", new byte[] { CMD_GAIN_READ, 0 }))
+        {
+            FinishGainRead("読み込みコマンドを送れませんでした", Colors.Red);
+            return;
+        }
+
+        // 応答がそろわなければボタンを戻す（古いファームウェアなど）
+        await Task.Delay(GAIN_READ_TIMEOUT_MS);
+        if (_gainReading)
+            FinishGainRead($"応答がそろいませんでした（{_gainReadReceived.Count}/{GainReadParts}）", Colors.Red);
+    }
+
+    private void FinishGainRead(string message, Color color)
+    {
+        _gainReading = false;
+        gainReadButton.IsEnabled = true;
+        gainReadStatusLabel.Text = message;
+        gainReadStatusLabel.TextColor = color;
+    }
+
+    private void OnNotificationReceived(object? sender, byte[] data)
+    {
+        if (_bleService == null || sender is not ICharacteristic characteristic) return;
+        var key = _bleService.Characteristics.FirstOrDefault(x => x.Value == characteristic).Key;
+        if (key != "Command" || data.Length < 2 || data[0] != CMD_GAIN_READ) return;
+        MainThread.BeginInvokeOnMainThread(() => ApplyGainReadback(data));
+    }
+
+    private void ApplyGainReadback(byte[] data)
+    {
+        int kind = data[1];
+        if (kind == 0 && data.Length >= 2 + sizeof(float) * _pidEntries.Length)
+            FillEntries(_pidEntries, 0, _pidEntries.Length, data);
+        else if (kind >= 1 && kind <= KcRows && data.Length >= 2 + sizeof(float) * KcCols)
+            FillEntries(_kcEntries, (kind - 1) * KcCols, KcCols, data);
+        else
+            return;
+
+        _gainReadReceived.Add(kind);
+        if (_gainReading && _gainReadReceived.Count == GainReadParts)
+            FinishGainRead("ドローンのゲインを読み込みました", Colors.Green);
+    }
+
+    // data[2..] の float を entries[first..] に入れる。ドローンと同じ値なので送信済みとして扱う
+    private void FillEntries(Entry[] entries, int first, int count, byte[] data)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var entry = entries[first + i];
+            entry.Text = FormatValue(BitConverter.ToSingle(data, 2 + i * sizeof(float)));
+            MarkSent(entry);
+        }
     }
 
     // ---- PID ----

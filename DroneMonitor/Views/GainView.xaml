@@ -5,6 +5,12 @@
     <ScrollView>
         <VerticalStackLayout Padding="12" Spacing="12">
 
+            <!-- ドローンに入っているゲインを読み出して表に入れる -->
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="gainReadButton" Text="ドローンから読み込む" Clicked="OnGainReadClicked" />
+                <Label x:Name="gainReadStatusLabel" Text="" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
             <!-- PID ゲイン（3軸 × P/I/D） -->
             <Border Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
                 <VerticalStackLayout Spacing="8">

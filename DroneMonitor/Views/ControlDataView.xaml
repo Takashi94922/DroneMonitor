@@ -14,6 +14,8 @@
                         <Button x:Name="modeMimoButton" Text="MIMO" Clicked="OnModeButtonClicked" MinimumWidthRequest="110" />
                         <Button x:Name="modePidButton" Text="PID" Clicked="OnModeButtonClicked" MinimumWidthRequest="110" />
                     </HorizontalStackLayout>
+                    <!-- ドローンから約0.2秒ごとに届く状態（モードのボタンもドローン側に合わせる） -->
+                    <Label x:Name="droneStateLabel" Text="" FontSize="13" TextColor="Gray" />
                 </VerticalStackLayout>
             </Border>
 
@@ -30,9 +32,9 @@
                 </Grid>
             </Border>
 
-            <!-- センサ値（行: Accel / Gyro、列: X / Y / Z）。Gains タブでは ShowSensors="False" で隠す -->
+            <!-- センサ値（行: Accel / Gyro / Mag、列: X / Y / Z。IMU座標で符号変換・バイアス補正の後）。Gains タブでは ShowSensors="False" で隠す -->
             <Border x:Name="sensorBorder" Padding="12" Stroke="LightGray" StrokeShape="RoundRectangle 8">
-                <Grid x:Name="sensorGrid" ColumnDefinitions="110,*,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                <Grid x:Name="sensorGrid" ColumnDefinitions="110,*,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                     <Label Grid.Row="0" Grid.ColumnSpan="2" Text="センサ" FontAttributes="Bold" VerticalOptions="Center" />
                     <!-- ジャイロのバイアス校正（スロットル0・静止中だけドローン側で実行される） -->
                     <Button x:Name="gyroCalibButton" Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2"
@@ -42,7 +44,8 @@
                     <Label Grid.Row="1" Grid.Column="3" Text="Z" TextColor="Gray" HorizontalOptions="End" />
                     <Label Grid.Row="2" Grid.Column="0" Text="Accel [m/s²]" />
                     <Label Grid.Row="3" Grid.Column="0" Text="Gyro [rad/s]" />
-                    <Label x:Name="gyroCalibLabel" Grid.Row="4" Grid.ColumnSpan="4" Text="" FontSize="13" TextColor="Gray" />
+                    <Label Grid.Row="4" Grid.Column="0" Text="Mag [gauss]" />
+                    <Label x:Name="gyroCalibLabel" Grid.Row="5" Grid.ColumnSpan="4" Text="" FontSize="13" TextColor="Gray" />
                 </Grid>
             </Border>
 

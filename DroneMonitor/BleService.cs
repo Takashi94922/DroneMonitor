@@ -5,6 +5,10 @@ using Plugin.BLE.Abstractions.EventArgs;
 using Plugin.BLE.Abstractions.Extensions;
 using System.Diagnostics;
 
+// ドローン側の状態（Command の通知 [20, mode, flags, 0, throttle, target pitch/roll/yaw] を読んだもの）
+public record DroneStatus(byte Mode, bool Failsafe, bool Calibrating, bool HeartbeatArmed,
+                          float Throttle, float PitchTarget, float RollTarget, float YawTarget);
+
 public enum BleConnectionState
 {
     Disconnected,
@@ -44,6 +48,11 @@ public class BleService
     }
     public event EventHandler? ControlStateChanged;
 
+    // ドローンから定期的（約0.2秒ごと）に届く状態。未受信・切断後は null
+    private const byte CMD_STATUS = 20;
+    public DroneStatus? LastDroneStatus { get; private set; }
+    public event EventHandler<DroneStatus>? DroneStatusChanged;
+
     // GATT操作は同時に1つしか実行できない（Androidでは重なると busy で失敗する）ので、
     // 書き込みと通知の開始・停止はこのロックで直列化する
     private readonly SemaphoreSlim _gattLock = new(1, 1);
@@ -61,7 +70,7 @@ public class BleService
         new Guid($"0000{uuid16:X4}-0000-1000-8000-00805F9B34FB");
 
     private readonly Guid SERVICE_UUID = To128BitUuid(0x00FF);
-    private readonly Guid CHAR_UUID_Xhat_Telem = To128BitUuid(0xFF01);
+    private readonly Guid CHAR_UUID_Sensor_Telem = To128BitUuid(0xFF01);
     private readonly Guid CHAR_UUID_PRY_Telem = To128BitUuid(0xFF02);
     private readonly Guid CHAR_UUID_contU_TelemWrite = To128BitUuid(0xFF03);
     private readonly Guid CHAR_UUID_ContGain_Upd = To128BitUuid(0xFF04);
@@ -110,6 +119,7 @@ public class BleService
         Device = null;
         Service = null;
         Characteristics.Clear();
+        LastDroneStatus = null;
         await RequestBlePermissionsAsync();
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -154,7 +164,7 @@ public class BleService
             Service = await Device.GetServiceAsync(SERVICE_UUID);
             var uuids = new[]
             {
-                CHAR_UUID_Xhat_Telem,
+                CHAR_UUID_Sensor_Telem,
                 CHAR_UUID_PRY_Telem,
                 CHAR_UUID_contU_TelemWrite,
                 CHAR_UUID_ContGain_Upd,
@@ -163,7 +173,7 @@ public class BleService
             };
             var keys = new[]
             {
-                "Xhat_Telem",
+                "Sensor_Telem",
                 "PRY_Telem",
                 "contU_TelemWrite",
                 "ContGain_Upd",
@@ -178,7 +188,7 @@ public class BleService
             {
                 if (chars[i] != null)
                 {
-                    // 例: uuids と同じ順番で "Xhat_Telem" などのキーを用意しておく
+                    // 例: uuids と同じ順番で "Sensor_Telem" などのキーを用意しておく
                     Characteristics[keys[i]] = chars[i];
                 }
             }
@@ -203,6 +213,7 @@ public class BleService
             Device = null;
             Service = null;
             Characteristics.Clear();
+            LastDroneStatus = null;
             SetState(BleConnectionState.Disconnected);
             UnexpectedDisconnected?.Invoke(this, e.Device);
         }
@@ -349,6 +360,30 @@ public class BleService
 
     private void OnValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
     {
-        NotificationReceived?.Invoke(e.Characteristic, e.Characteristic.Value);
+        var data = e.Characteristic.Value;
+        if (Characteristics.TryGetValue("Command", out var command) && e.Characteristic == command)
+        {
+            TryUpdateDroneStatus(data);
+        }
+        NotificationReceived?.Invoke(e.Characteristic, data);
+    }
+
+    // ドローンの状態を読み、制御モードもドローン側に合わせる（モニターの表示がずれたままにならないように）
+    private void TryUpdateDroneStatus(byte[] data)
+    {
+        if (data.Length < 20 || data[0] != CMD_STATUS) return;
+        byte flags = data[2];
+        var status = new DroneStatus(
+            Mode: data[1],
+            Failsafe: (flags & 0x01) != 0,
+            Calibrating: (flags & 0x02) != 0,
+            HeartbeatArmed: (flags & 0x04) != 0,
+            Throttle: BitConverter.ToSingle(data, 4),
+            PitchTarget: BitConverter.ToSingle(data, 8),
+            RollTarget: BitConverter.ToSingle(data, 12),
+            YawTarget: BitConverter.ToSingle(data, 16));
+        LastDroneStatus = status;
+        IsControlBySelf = status.Mode;
+        DroneStatusChanged?.Invoke(this, status);
     }
 }

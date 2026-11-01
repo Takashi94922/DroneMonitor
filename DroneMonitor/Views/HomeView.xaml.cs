@@ -34,7 +34,7 @@ namespace DroneMonitor.Views
         private const byte SEND_THRESHOLD = 1;
 
         // Tripボタン（操縦者による緊急停止）のスロットル[%]。推力を完全に切る
-        // ※通信途絶時の緊急動作はドローン側（emergency_action）で30%に下げる。こちらとは別扱い
+        // ※通信途絶時の緊急動作はドローン側（emergency_action）でも0%に下げる。こちらとは別扱い
         private const byte TRIP_THROTTLE = 0;
 
 #if WINDOWS
@@ -179,7 +179,8 @@ namespace DroneMonitor.Views
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (key == "Command" && data.Length >= 24)
+                // 21 はゲインの読み戻しの応答（Gains タブが処理する）
+                if (key == "Command" && data.Length >= 24 && data[0] != 21)
                 {
                     msgWindow.Text = $"{BitConverter.ToString(data)}";
                 }

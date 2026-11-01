@@ -9,6 +9,11 @@ public partial class StatusBarView : ContentView
     private BleService? _bleService;
     private uint _lastOverrun = 0; // 取りこぼしが増えたかの判定用
 
+    // スロットルの指令値と、それを変えた時刻（変えた直後は機体側の状態がまだ届いていないので比べない）
+    private byte _commandedThrottle = 0;
+    private DateTime _throttleChangedAt = DateTime.MinValue;
+    private static readonly TimeSpan ThrottleCompareDelay = TimeSpan.FromSeconds(0.5);
+
     private static readonly string[] ControlModeNames = { "None", "MIMO", "PID" };
 
     // TRIP ボタンが押されたときに通知する（実際の送信処理は HomeView が持つ）
@@ -28,6 +33,9 @@ public partial class StatusBarView : ContentView
     public void SetThrottle(byte percent)
     {
         throttleLabel.Text = $"{percent}%";
+        _commandedThrottle = percent;
+        _throttleChangedAt = DateTime.Now;
+        UpdateDroneStatus();
     }
 
     public void SetBleService(BleService bleService)
@@ -37,12 +45,14 @@ public partial class StatusBarView : ContentView
             _bleService.ConnectionStateChanged -= OnStateChanged;
             _bleService.ControlStateChanged -= OnStateChanged;
             _bleService.NotificationReceived -= OnNotificationReceived;
+            _bleService.DroneStatusChanged -= OnDroneStatusChanged;
         }
 
         _bleService = bleService;
         _bleService.ConnectionStateChanged += OnStateChanged;
         _bleService.ControlStateChanged += OnStateChanged;
         _bleService.NotificationReceived += OnNotificationReceived;
+        _bleService.DroneStatusChanged += OnDroneStatusChanged;
         UpdateState();
     }
 
@@ -52,6 +62,30 @@ public partial class StatusBarView : ContentView
         _bleService.ConnectionStateChanged -= OnStateChanged;
         _bleService.ControlStateChanged -= OnStateChanged;
         _bleService.NotificationReceived -= OnNotificationReceived;
+        _bleService.DroneStatusChanged -= OnDroneStatusChanged;
+    }
+
+    private void OnDroneStatusChanged(object? sender, DroneStatus status)
+    {
+        MainThread.BeginInvokeOnMainThread(UpdateDroneStatus);
+    }
+
+    // 機体側の状態の表示。緊急動作中と機体側のスロットルを示し、指令値と違えば色を変える
+    private void UpdateDroneStatus()
+    {
+        var status = _bleService?.LastDroneStatus;
+        failsafeLabel.IsVisible = status?.Failsafe == true;
+
+        if (status == null)
+        {
+            droneThrottleLabel.Text = "-";
+            droneThrottleLabel.TextColor = Colors.Black;
+            return;
+        }
+        bool settled = DateTime.Now - _throttleChangedAt > ThrottleCompareDelay;
+        bool differs = settled && Math.Abs(status.Throttle - _commandedThrottle) >= 1.0f;
+        droneThrottleLabel.Text = $"{status.Throttle:F0}%";
+        droneThrottleLabel.TextColor = differs ? Colors.OrangeRed : Colors.Black;
     }
 
     private void OnStateChanged(object? sender, EventArgs e)
@@ -85,6 +119,8 @@ public partial class StatusBarView : ContentView
         byte mode = _bleService.IsControlBySelf;
         controlModeLabel.Text = mode < ControlModeNames.Length ? ControlModeNames[mode] : mode.ToString();
         controlModeLabel.TextColor = mode == 0 ? Colors.Black : Colors.Blue;
+
+        UpdateDroneStatus();
 
         // 接続済みなのに負荷のキャラクタリスティックが無い＝古いファームウェア
         if (_bleService.State == BleConnectionState.Connected && !_bleService.Characteristics.ContainsKey("LoopStats_Telem"))

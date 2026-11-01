@@ -14,6 +14,8 @@
                     <Label Text="制御モード" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
                     <Label x:Name="controlModeLabel" Text="None" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
                 </HorizontalStackLayout>
+                <Label x:Name="failsafeLabel" Text="緊急動作中" FontSize="16" FontAttributes="Bold" TextColor="Red"
+                       IsVisible="False" VerticalOptions="Center" />
             </HorizontalStackLayout>
 
             <!-- TRIP（緊急停止）。どの画面からでも押せるよう状態バーの中央に置く -->
@@ -27,6 +29,11 @@
                 <HorizontalStackLayout Spacing="6">
                     <Label Text="Throttle" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
                     <Label x:Name="throttleLabel" Text="0%" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <!-- 機体側の実際のスロットル。指令値と違うとき（緊急動作で下げられたなど）は色を変える -->
+                <HorizontalStackLayout Spacing="6">
+                    <Label Text="機体" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
+                    <Label x:Name="droneThrottleLabel" Text="-" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
                 </HorizontalStackLayout>
                 <HorizontalStackLayout Spacing="6">
                     <Label Text="制御ループ負荷" FontSize="12" TextColor="Gray" VerticalOptions="Center" />
