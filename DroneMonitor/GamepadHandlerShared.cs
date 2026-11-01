@@ -24,5 +24,15 @@ namespace DroneMonitor
         public abstract void Start();
         public abstract void Dispose();
         public abstract void Init();
+
+        // パッドのスロットル操作をOFFにし、パッド側のスロットル値も0に戻す。
+        // BLEの切断・再接続時に呼ぶ（ONのままだと、再接続した直後に前のスロットル値が送られてしまう）
+        public void ResetThrottle()
+        {
+            IsThrottleByPad = false;
+            U5[0] = 0;
+            steppers[0].IsEnabled = true;
+            sliders[0].IsEnabled = true;
+        }
     }
 }

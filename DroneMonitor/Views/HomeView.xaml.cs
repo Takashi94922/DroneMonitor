@@ -124,10 +124,12 @@ namespace DroneMonitor.Views
             if (_bleService != null)
             {
                 _bleService.NotificationReceived -= OnNotificationReceived;
+                _bleService.ConnectionStateChanged -= OnConnectionStateChanged;
             }
 
             _bleService = bleService;
             _bleService.NotificationReceived += OnNotificationReceived;
+            _bleService.ConnectionStateChanged += OnConnectionStateChanged;
 
             if (_gamepadHandler != null)
             {
@@ -161,10 +163,20 @@ namespace DroneMonitor.Views
         public void Cleanup()
         {
             if (_bleService != null)
+            {
                 _bleService.NotificationReceived -= OnNotificationReceived;
+                _bleService.ConnectionStateChanged -= OnConnectionStateChanged;
+            }
 
             _sendControlUTimer?.Stop();
             _gamepadHandler?.Dispose();
+        }
+
+        // 切断・再接続のたびにパッドのスロットル操作をOFFにする（再接続した直後に前のスロットル値を送らないように）
+        private void OnConnectionStateChanged(object? sender, EventArgs e)
+        {
+            if (_bleService == null || _bleService.State == BleConnectionState.Connecting) return;
+            MainThread.BeginInvokeOnMainThread(() => _gamepadHandler?.ResetThrottle());
         }
 
         // BLE通知受信時の処理
